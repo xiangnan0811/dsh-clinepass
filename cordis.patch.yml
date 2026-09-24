@@ -1,0 +1,6 @@
+# dsh-clinepass — ClinePass connection for DeepSeek Harness.
+# name must be the FULL package specifier (scoped).
+- insert:
+    - id: dsh-clinebot
+      name: 'dsh-clinepass'
+      config: {}
