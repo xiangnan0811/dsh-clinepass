@@ -1,11 +1,12 @@
-const INJECT = ['settingsScope', 'slots', 'locale']
+const INJECT = ['configForms', 'slots', 'locale']
+const ROW_KEY = `${PACKAGE_NAME}#${NS}`
 
 function bindScope(ctx) {
   try {
-    if (!ctx || typeof ctx.settingsScope?.bind !== 'function') {
-      return { scope: null, scopeError: 'This DSH build did not provide settingsScope. The plugin needs @deepseek-ai/dsh-client-ui-settings (tested on DSH 0.1.5-rc.2).' }
+    if (!ctx || typeof ctx.configForms?.get !== 'function') {
+      return { scope: null, scopeError: 'This DSH build did not provide configForms. The plugin needs @deepseek-ai/dsh-client-ui-settings (tested on DSH 0.1.7-rc.2).' }
     }
-    return { scope: ctx.settingsScope.bind({ namespace: NS }), scopeError: '' }
+    return { scope: ctx.configForms.get(NS), scopeError: '' }
   } catch (err) {
     return { scope: null, scopeError: String(err?.message || err) }
   }
@@ -13,7 +14,7 @@ function bindScope(ctx) {
 
 function refreshScope(ctx) {
   try {
-    const face = ctx.settingsScope?.describe?.()
+    const face = ctx.configForms?.describe?.()
     if (typeof face?.ensure === 'function') return face.ensure()
   } catch (err) {
     return Promise.reject(err)
@@ -57,23 +58,45 @@ function apply(ctx) {
 
     ctx.effect(() => {
       if (!ctx.slots || typeof ctx.slots.inject !== 'function') return undefined
-      let off = () => {}
-      try {
-        off = ctx.slots.inject('settings.plugin.item', () => ctx.slots.register(
-          {
-            name: 'settings.plugin.item',
-            key: NS,
-            order: 60,
-            locale: NS,
-          },
-          card,
-        )) || (() => {})
-      } catch (err) {
-        console.warn('[dsh-clinebot] settings.plugin.item registration failed:', err)
+      const surface = (props) => card({ ...props, view: props?.view || 'page' })
+      const label = () => {
+        try {
+          const translate = ctx.locale?.bind?.(NS)
+          if (typeof translate === 'function') return translate('title')
+        } catch (_) {}
+        return 'ClineBot'
       }
+      const offs = []
+      const listen = (register) => {
+        try {
+          const off = register()
+          if (typeof off === 'function') offs.push(off)
+        } catch (err) {
+          console.warn('[dsh-clinebot] settings registration failed:', err)
+        }
+      }
+      listen(() => ctx.slots.inject('settings.section', () => ctx.slots.register(
+        {
+          name: 'settings.section',
+          id: NS,
+          order: 80,
+          label,
+          locale: NS,
+        },
+        surface,
+      )))
+      listen(() => ctx.slots.inject('plugins.row.config', () => ctx.slots.register(
+        {
+          name: 'plugins.row.config',
+          key: ROW_KEY,
+          locale: NS,
+        },
+        surface,
+      )))
       return () => {
-        try { off() } catch { /* slot already disposed */ }
-        try { bound.scope?.dispose?.() } catch { /* scope already disposed */ }
+        for (const off of offs) {
+          try { off() } catch { /* slot already disposed */ }
+        }
       }
     }, 'dsh-clinebot: settings card')
   }

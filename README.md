@@ -14,13 +14,13 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-DeepSeek Harness `0.1.5-rc.2` installs plugins with pnpm. A GitHub spec is enough:
+DeepSeek Harness `0.1.7-rc.2` installs plugins with pnpm. A GitHub spec is enough:
 
 ```sh
 dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 ```
 
-Restart `dsh` and open Settings → Plugins → ClineBot.
+Restart `dsh`. **ClineBot** is in the settings sidebar. The sidebar **Plugins** page also opens it from the `dsh-clinebot` row inside `dsh-clinepass`. Settings → Built-in plugins is a read-only inventory and no longer hosts this card.
 
 `npm publish` is not required for the DSH plugin market in the sidebar
 (`dsh-market`). That market installs with `dsh plugin add github:owner/repo`.
@@ -55,7 +55,7 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass
 id. The default smoke model is that id.
 
-Tested host: DeepSeek Harness `0.1.5-rc.2`. The card is `settings.plugin.item`.
+Tested host: DeepSeek Harness `0.1.7-rc.2`. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 ## Configuration
 

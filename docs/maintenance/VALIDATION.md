@@ -1,6 +1,10 @@
 # Validation record
 
-Latest package: `dsh-clinepass@0.5.0`. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
+Latest package: `dsh-clinepass@0.5.1`. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
+
+## Current host
+
+DeepSeek Harness `0.1.7-rc.2` does not provide `settingsScope`. A client that injects it stays pending, and the web boot screen reports `dsh-clinepass: pending (waiting for service: settingsScope)`. From 0.5.1 the client injects `configForms`, `slots`, and `locale`. Settings → 内置插件 is a read-only inventory. The page is a `settings.section` named `dsh-clinebot`, and the same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`. The 0.1.5-rc.2 notes below stay as the record of that host. An isolated `DSH_HOME` on 0.1.7-rc.2 booted past the plugin screen, showed ClineBot in the settings sidebar, opened the same form from the sidebar Plugins row, and accepted a settings write. The interactive `~/.dsh` profile was not changed.
 
 | Item | Value |
 | --- | --- |
@@ -15,7 +19,7 @@ Latest package: `dsh-clinepass@0.5.0`. Earlier notes below used the working name
 | Clue | Result | Evidence |
 | --- | --- | --- |
 | Settings page reads `settingsScope` without inject | Confirmed, fixed | `src/client/entry.js` injects `settingsScope`, `slots`, `locale`. `package.json` depends on `@deepseek-ai/dsh-client-ui-settings`, locale, and slots. Cordis test throws `cannot get property "settingsScope" without inject` without that inject and binds the namespace with it. |
-| `configForms` wait breaks web boot | Confirmed for 0.1.5-rc.2: the string is absent from the installed host. Not reintroduced. | `rg configForms` under the installed `@deepseek-ai` tree. The built client does not contain `configForms`. |
+| `configForms` wait breaks web boot | Confirmed for 0.1.5-rc.2: the string was absent from that host. 0.5.1 injects `configForms` because 0.1.7-rc.2 provides it and no longer provides `settingsScope`. | `rg` on the installed 0.1.7-rc.2 tree finds `configForms` in `@deepseek-ai/dsh-client-ui-settings` and no `settingsScope`. |
 | Plan parser deletes decimal points | Confirmed on `14314f83`, fixed | `test/registry.test.js` runs the old function from that blob and the current `parsePlanIncludedModels`. |
 | Uniform 200000/8192 gateway cap | Not supported by Cline's model table or the DeepSeek API docs fetched 2026-09-23. Removed as a hard claim. | `lib/catalog.js` |
 | `getAllModels` ignores same-id updates | Confirmed in the old append-only loop. Current assembly always applies the maintained catalog, then user overrides. | `lib/model-registry.js` |

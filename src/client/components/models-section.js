@@ -14,6 +14,15 @@ function formatK(value) {
   return `${Math.round(n / 1000)}k`
 }
 
+function reasoningLabel(model, t) {
+  if (model.reasoningSource === 'user-off') return t('models.reasoning_off')
+  const active = model.reasoningLevelIds || []
+  if (active.length) return active.join(' / ')
+  const available = model.catalogReasoningLevels || []
+  if (available.length) return available.join(' / ')
+  return '—'
+}
+
 function ModelsSection({
   modelsList,
   enabledSet,
@@ -31,6 +40,7 @@ function ModelsSection({
 }) {
   const [editing, setEditing] = React.useState('')
   const [form, setForm] = React.useState(null)
+  const [notice, setNotice] = React.useState(null)
 
   function openEditor(model) {
     const override = model.override || {}
@@ -44,11 +54,27 @@ function ModelsSection({
     })
   }
 
-  function fieldOrInherit(value) {
-    const text = String(value || '').trim()
-    if (!text) return 'inherit'
-    const number = Number(text)
-    return Number.isInteger(number) && number > 0 ? number : 'inherit'
+  async function saveEditor(model, restore) {
+    const counts = restore ? null : {
+      contextWindow: parseTokenCount(form.contextWindow),
+      outputCapability: parseTokenCount(form.outputCapability),
+      requestOutputBudget: parseTokenCount(form.requestOutputBudget),
+    }
+    if (counts && (!counts.contextWindow.ok || !counts.outputCapability.ok || !counts.requestOutputBudget.ok)) {
+      setNotice({ id: model.id, ok: false, text: t('models.bad_number') })
+      return
+    }
+    const result = await saveModelPatch({
+      modelOverride: {
+        id: model.id,
+        contextWindow: restore ? 'inherit' : counts.contextWindow.value,
+        outputCapability: restore ? 'inherit' : counts.outputCapability.value,
+        requestOutputBudget: restore ? 'inherit' : counts.requestOutputBudget.value,
+        inputMode: restore ? 'inherit' : form.inputMode,
+        reasoningMode: restore ? 'inherit' : form.reasoningMode,
+      },
+    })
+    if (result) setNotice({ id: model.id, ok: result.ok, text: result.message })
   }
 
   return React.createElement(
@@ -115,7 +141,7 @@ function ModelsSection({
                 [t('models.output_cap'), formatK(model.outputCapability)],
                 [t('models.request_budget'), formatK(model.requestOutputBudget)],
                 [t('models.th_input'), model.input?.includes('image') ? t('models.image_on') : t('models.image_off')],
-                [t('models.th_reasoning'), model.reasoningLevelIds?.length ? model.reasoningLevelIds.join(' / ') : '—'],
+                [t('models.th_reasoning'), reasoningLabel(model, t)],
               ].map(([label, value]) => React.createElement('div', { className: 'cb-metric', key: label },
                 React.createElement('span', null, label),
                 React.createElement('b', null, value),
@@ -125,6 +151,7 @@ function ModelsSection({
         ),
         editing === model.id && form ? React.createElement('div', { className: 'cb-editor' },
             model.channelListed && !model.vendorReasoningNote ? null : React.createElement('div', { className: 'cb-section-desc cb-editor-note' }, model.channelListed ? model.vendorReasoningNote : t('models.unlisted_note')),
+            React.createElement('div', { className: 'cb-section-desc cb-editor-note' }, t('models.count_hint')),
             React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.context_ph')), React.createElement('input', { className: 'cb-input', value: form.contextWindow, onChange: (event) => setForm({ ...form, contextWindow: event.target.value }) })),
             React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.cap_ph')), React.createElement('input', { className: 'cb-input', value: form.outputCapability, onChange: (event) => setForm({ ...form, outputCapability: event.target.value }) })),
             React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.budget_ph')), React.createElement('input', { className: 'cb-input', value: form.requestOutputBudget, onChange: (event) => setForm({ ...form, requestOutputBudget: event.target.value }) })),
@@ -132,36 +159,19 @@ function ModelsSection({
               ['inherit', 'text', 'text+image'].map((mode) => React.createElement('option', { key: mode, value: mode }, optionLabel(mode, t))))),
             React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.th_reasoning')), React.createElement('select', { className: 'cb-input', value: form.reasoningMode, onChange: (event) => setForm({ ...form, reasoningMode: event.target.value }) },
               (model.vendorReasoningAvailable ? ['inherit', 'off', 'vendor'] : ['inherit', 'off']).map((mode) => React.createElement('option', { key: mode, value: mode }, optionLabel(mode, t))))),
+            notice && notice.id === model.id ? React.createElement('div', { className: notice.ok ? 'cb-alert-ok cb-editor-note' : 'cb-alert-bad cb-editor-note' }, notice.text) : null,
             React.createElement('div', { className: 'cb-editor-actions' },
               React.createElement('button', {
                 type: 'button',
                 className: 'cb-btn cb-btn-primary',
                 disabled: !!busy,
-                onClick: () => saveModelPatch({
-                  modelOverride: {
-                    id: model.id,
-                    contextWindow: fieldOrInherit(form.contextWindow),
-                    outputCapability: fieldOrInherit(form.outputCapability),
-                    requestOutputBudget: fieldOrInherit(form.requestOutputBudget),
-                    inputMode: form.inputMode,
-                    reasoningMode: form.reasoningMode,
-                  },
-                }),
+                onClick: () => saveEditor(model, false),
               }, t('models.save')),
               React.createElement('button', {
                 type: 'button',
                 className: 'cb-btn',
                 disabled: !!busy,
-                onClick: () => saveModelPatch({
-                  modelOverride: {
-                    id: model.id,
-                    contextWindow: 'inherit',
-                    outputCapability: 'inherit',
-                    requestOutputBudget: 'inherit',
-                    inputMode: 'inherit',
-                    reasoningMode: 'inherit',
-                  },
-                }),
+                onClick: () => saveEditor(model, true),
               }, t('models.restore')),
             ),
           )

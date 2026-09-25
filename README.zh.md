@@ -13,13 +13,13 @@ DeepSeek Harness 的 ClinePass 插件，维护在这个仓库：
 
 ## 从本仓库安装
 
-DeepSeek Harness `0.1.5-rc.2` 通过 pnpm 安装插件。GitHub 地址就够用：
+DeepSeek Harness `0.1.7-rc.2` 通过 pnpm 安装插件。GitHub 地址就够用：
 
 ```sh
 dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 ```
 
-重启 `dsh`，打开设置 → 插件 → ClineBot。
+重启 `dsh`。设置侧栏里有 **ClineBot**。侧边栏的**插件**页打开 `dsh-clinepass` 后，`dsh-clinebot` 这一行也可以进入配置。设置里的**内置插件**只读，不再挂第三方插件的设置。
 
 侧边栏里的插件市场（`dsh-market`）不要求先发 npm。它的一键安装用的是
 `dsh plugin add github:所有者/仓库`。只有想用 `dsh plugin add <npm 包名>` 时才需要 `npm publish`。
@@ -40,7 +40,7 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 
 `api.cline.bot` 的 `GET /api/v1/models` 返回 404。有密钥时，发现走 `GET /users/me/plan`。`cline-pass/deepseek-v4.1-flash` 是普通 ClinePass 模型，也是默认冒烟模型。
 
-已核对的宿主是 DeepSeek Harness `0.1.5-rc.2`。设置卡片在 `settings.plugin.item`。
+已核对的宿主是 DeepSeek Harness `0.1.7-rc.2`。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
 
 ## 配置
 

@@ -9,23 +9,68 @@ import { upsertPiAiProvider, removePiAiProvider, noteUserWrite, currentEpoch, au
 
 const require = createRequire(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
 const { Context, Service } = require('@deepseek-ai/cordis')
-const { SettingsProvider } = require('@deepseek-ai/dsh-settings')
 const z = require('@deepseek-ai/schemastery').default || require('@deepseek-ai/schemastery')
 
-class MemorySettings extends SettingsProvider {
+function setPath(root, path, value) {
+  let node = root
+  for (let i = 0; i < path.length - 1; i += 1) {
+    const key = path[i]
+    if (!node[key] || typeof node[key] !== 'object') node[key] = {}
+    node = node[key]
+  }
+  node[path[path.length - 1]] = value
+}
+
+function unsetPath(root, path) {
+  let node = root
+  for (let i = 0; i < path.length - 1; i += 1) {
+    node = node?.[path[i]]
+    if (!node) return
+  }
+  delete node[path[path.length - 1]]
+}
+
+class MemorySettings extends Service {
   writable = true
 
   constructor(ctx, config) {
-    super(ctx)
-    this.memory = structuredClone(config?.document || {})
+    super(ctx, 'settings')
+    this.docs = structuredClone(config?.document || {})
   }
 
-  load() {
-    return this.memory
+  register(ns) {
+    if (!this.docs[ns]) this.docs[ns] = {}
+    return {
+      get: () => this.docs[ns],
+      watch: () => () => {},
+      update: (patch) => this.update(ns, patch),
+      replace: (section) => this.replace(ns, section),
+    }
   }
 
-  persist(ns, section) {
-    this.memory[ns] = section
+  get(ns) {
+    return this.docs[ns]
+  }
+
+  describe() {
+    return Object.entries(this.docs).map(([ns, value]) => ({ ns, value, revision: 1 }))
+  }
+
+  async update(ns, patch) {
+    this.docs[ns] = { ...(this.docs[ns] || {}), ...structuredClone(patch) }
+  }
+
+  async replace(ns, section) {
+    this.docs[ns] = structuredClone(section)
+  }
+
+  async mutate(ns, ops) {
+    const current = this.docs[ns] || {}
+    for (const op of ops || []) {
+      if (op.op === 'set') setPath(current, op.path, structuredClone(op.value))
+      else if (op.op === 'unset') unsetPath(current, op.path)
+    }
+    this.docs[ns] = current
   }
 }
 
@@ -197,6 +242,81 @@ test('a missing API key still publishes the selected catalog', async () => {
     assert.equal(stored.providers.other.apiKeyEnv, 'OTHER_KEY')
     const flash = stored.providers.clinebot.models.find((model) => model.id === 'cline-pass/deepseek-v4.1-flash')
     assert.equal(Object.hasOwn(flash.reasoningEfforts, 'off'), false)
+  } finally {
+    await ctx.fiber?.dispose?.()
+    if (previousKey === undefined) delete process.env.CLINEBOT_API_KEY
+    else process.env.CLINEBOT_API_KEY = previousKey
+  }
+})
+
+test('0.1.7 settings without register still publishes the selected catalog', async () => {
+  const previousKey = process.env.CLINEBOT_API_KEY
+  delete process.env.CLINEBOT_API_KEY
+  const ctx = new Context()
+  const docs = {
+    'llm-pi-ai': { providers: { other: { apiKeyEnv: 'OTHER_KEY' } } },
+  }
+  class FormsSettings extends Service {
+    constructor(inner) {
+      super(inner, 'settings')
+    }
+
+    describe() {
+      return Object.entries(docs).map(([ns, value]) => ({ ns, value, revision: 1 }))
+    }
+
+    async update(ns, patch) {
+      docs[ns] = { ...(docs[ns] || {}), ...structuredClone(patch) }
+    }
+
+    async replace(ns, section) {
+      docs[ns] = structuredClone(section)
+    }
+
+    async mutate(ns, ops) {
+      const current = docs[ns] || {}
+      for (const op of ops || []) {
+        if (op.op === 'set') setPath(current, op.path, structuredClone(op.value))
+        else if (op.op === 'unset') unsetPath(current, op.path)
+      }
+      docs[ns] = current
+    }
+  }
+  await ctx.plugin(FormsSettings)
+  class Creds extends Service {
+    constructor(inner) {
+      super(inner, 'credentials')
+    }
+
+    async resolve() {
+      return null
+    }
+  }
+  await ctx.plugin(Creds)
+  const plugin = await import('../lib/index.js')
+  await ctx.plugin({
+    name: plugin.name,
+    inject: plugin.inject,
+    apply: plugin.apply,
+  }, {
+    enabled: true,
+    baseUrl: 'https://api.cline.bot/api/v1',
+    selectionKind: 'all-except-disabled',
+    disabledModels: [],
+    explicitModels: [],
+    modelOverrides: [],
+    migrationRevision: 1,
+    modelsCachePath: '/tmp/dsh-clinebot-accept/missing-cache-forms.json',
+  })
+  try {
+    let stored
+    for (let i = 0; i < 50; i += 1) {
+      stored = docs['llm-pi-ai']
+      if ((stored?.providers?.clinebot?.models || []).length >= 16) break
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    assert.equal(stored.providers.clinebot.models.length, 16)
+    assert.equal(stored.providers.other.apiKeyEnv, 'OTHER_KEY')
   } finally {
     await ctx.fiber?.dispose?.()
     if (previousKey === undefined) delete process.env.CLINEBOT_API_KEY

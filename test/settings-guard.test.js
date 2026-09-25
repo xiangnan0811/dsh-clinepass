@@ -13,40 +13,40 @@ class SlotsService extends Service {
   }
 }
 
-class SettingsScopeService extends Service {
+class ConfigFormsService extends Service {
   constructor(ctx) {
-    super(ctx, 'settingsScope')
+    super(ctx, 'configForms')
   }
 
-  bind(spec) {
-    return { namespace: spec.namespace, status: 'bound' }
+  get(namespace) {
+    return { namespace, status: 'bound' }
   }
 }
 
-test('cordis refuses settingsScope when the plugin did not inject it', async () => {
+test('cordis refuses configForms when the plugin did not inject it', async () => {
   const ctx = new Context()
   await ctx.plugin(SlotsService)
   await assert.rejects(
     () => Promise.resolve(ctx.plugin({
-      name: 'missing-scope',
+      name: 'missing-forms',
       inject: ['slots'],
       apply(inner) {
-        return inner.settingsScope
+        return inner.configForms
       },
     })),
-    /cannot get property "settingsScope" without inject/,
+    /cannot get property "configForms" without inject/,
   )
 })
 
-test('cordis allows settingsScope after the plugin injects it', async () => {
+test('cordis allows configForms after the plugin injects it', async () => {
   const ctx = new Context()
-  await ctx.plugin(SettingsScopeService)
+  await ctx.plugin(ConfigFormsService)
   let namespace = ''
   await ctx.plugin({
-    name: 'with-scope',
-    inject: ['settingsScope'],
+    name: 'with-forms',
+    inject: ['configForms'],
     apply(inner) {
-      namespace = inner.settingsScope.bind({ namespace: 'dsh-clinebot' }).namespace
+      namespace = inner.configForms.get('dsh-clinebot').namespace
     },
   })
   assert.equal(namespace, 'dsh-clinebot')

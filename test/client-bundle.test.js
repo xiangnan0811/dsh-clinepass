@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import vm from 'node:vm'
 
-test('built client declares settingsScope and does not touch the removed host services', () => {
+test('built client injects configForms and registers the row settings page', () => {
   const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.equal(pkg.name, 'dsh-clinepass')
@@ -11,11 +11,18 @@ test('built client declares settingsScope and does not touch the removed host se
     '@deepseek-ai/dsh-client-locale',
     '@deepseek-ai/dsh-client-ui-settings',
     '@deepseek-ai/dsh-client-ui-slots',
+    '@deepseek-ai/dsh-client-ui-plugin-manager',
   ])
   assert.equal(source.includes("ctx.get('lanSettings')"), false)
-  assert.equal(source.includes('configForms'), false)
-  assert.equal(source.includes("name: 'plugins.row.config'"), false)
+  assert.equal(source.includes('settingsScope'), false)
+  assert.equal(source.includes("name: 'settings.plugin.item'"), false)
   assert.equal(source.includes("name: 'plugins.item'"), false)
+  assert.equal(source.includes('configForms'), true)
+  assert.equal(source.includes("name: 'plugins.row.config'"), true)
+  assert.equal(source.includes("name: 'settings.section'"), true)
+  assert.match(source, /const ROW_KEY = `\$\{PACKAGE_NAME\}#\$\{NS\}`/)
+  assert.match(source, /const PACKAGE_NAME = 'dsh-clinepass'/)
+  assert.match(source, /const NS = 'dsh-clinebot'/)
   let loaded
   const sandbox = {
     window: {
@@ -43,7 +50,5 @@ test('built client declares settingsScope and does not touch the removed host se
     return {}
   })
   assert.equal(loaded.id, 'dsh-clinepass')
-  assert.ok(exports.inject.includes('settingsScope'))
-  assert.ok(exports.inject.includes('slots'))
-  assert.ok(exports.inject.includes('locale'))
+  assert.deepEqual(Array.from(exports.inject), ['configForms', 'slots', 'locale'])
 })

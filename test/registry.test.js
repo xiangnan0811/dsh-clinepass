@@ -44,11 +44,30 @@ test('plan models that the API already returned are in the maintained catalog', 
   assert.equal(glm.outputCapability, 131_072)
   assert.equal(glm.input.includes('image'), false)
   assert.equal(glm.vendorReasoningAvailable, true)
-  assert.equal(glm.reasoningEfforts, false)
+  assert.equal(glm.reasoningEfforts.low, 'low')
+  assert.equal(glm.reasoningEfforts.max, 'max')
   assert.equal(muse.channelListed, true)
-  assert.equal(muse.contextKnown, false)
-  assert.equal(muse.outputCapability, null)
-  assert.equal(muse.reasoningEfforts, false)
+  assert.equal(muse.contextWindow, 1_048_576)
+  assert.equal(muse.outputCapability, 943_718)
+  assert.equal(muse.input.includes('image'), true)
+  assert.equal(muse.vendorReasoningAvailable, true)
+  assert.deepEqual(muse.catalogReasoningLevels, ['minimal', 'low', 'medium', 'high', 'xhigh'])
+  assert.equal(muse.reasoningEfforts.xhigh, 'xhigh')
+  assert.equal(muse.reasoningEfforts.max, undefined)
+  assert.equal(muse.reasoningEfforts.off, undefined)
+  const musePayload = buildProviderPayload({
+    baseUrl: 'http://127.0.0.1:9/v1',
+    apiKeyEnv: 'CLINEBOT_API_KEY',
+    models: [muse],
+    displayName: 'ClineBot (ClinePass)',
+  }).payload.models[0]
+  assert.equal(musePayload.reasoningEfforts.minimal, 'minimal')
+  assert.equal(musePayload.reasoningEfforts.max, undefined)
+  assert.equal(musePayload.compat.supportsReasoningEffort, true)
+  const museOff = getAllModels({
+    modelOverrides: [{ id: muse.id, reasoningMode: 'off' }],
+  }).find((model) => model.id === muse.id)
+  assert.equal(museOff.reasoningEfforts, false)
 })
 
 test('usage limits keep monthly and smoke chat uses the configured API', async () => {
@@ -293,7 +312,9 @@ test('vendor reasoning is absent unless the catalog has an effort list, and unkn
     .find((model) => model.id === 'cline-pass/qwen3.7-plus')
   assert.equal(qwen.vendorReasoningAvailable, false)
   assert.equal(qwen.reasoningEfforts, false)
-  assert.equal(qwen.contextKnown, false)
+  assert.equal(qwen.contextWindow, 1_000_000)
+  assert.equal(qwen.outputCapability, 131_072)
+  assert.equal(qwen.input.includes('image'), true)
   const mimo = getAllModels({ modelOverrides: [{ id: 'cline-pass/mimo-v2.5', reasoningMode: 'vendor' }] })
     .find((model) => model.id === 'cline-pass/mimo-v2.5')
   assert.equal(mimo.reasoningEfforts, false)
@@ -311,7 +332,7 @@ test('vendor reasoning is absent unless the catalog has an effort list, and unkn
   assert.equal(glmEntry.compat.thinkingFormat, undefined)
   assert.equal(glmEntry.reasoningEfforts.high, 'high')
   assert.equal(qwenEntry.reasoningEfforts, false)
-  assert.equal(qwenEntry.contextWindow, undefined)
+  assert.equal(qwenEntry.contextWindow, 1_000_000)
 })
 
 test('migration does not replace config after a newer write starts', async () => {

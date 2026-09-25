@@ -358,8 +358,9 @@ function SettingsPage(props) {
   }
 
   async function saveModelPatch(body) {
+    const local = !!(body && body.modelOverride)
     setBusy('model-edit')
-    setErr('')
+    if (!local) setErr('')
     try {
       const res = await fetch(`${ROUTE_PREFIX}/models/toggle`, {
         method: 'POST',
@@ -368,10 +369,13 @@ function SettingsPage(props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`)
-      setMsg(data.warning || t('models.saved'))
+      if (!local) setMsg(data.warning || t('models.saved'))
       await load()
+      return { ok: true, message: data.warning || t('models.saved') }
     } catch (error) {
-      setErr(String(error.message || error))
+      const message = String(error.message || error)
+      if (!local) setErr(message)
+      return { ok: false, message }
     } finally {
       setBusy('')
     }

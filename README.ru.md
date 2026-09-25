@@ -14,13 +14,13 @@
 
 ## Установка из репозитория
 
-DeepSeek Harness `0.1.5-rc.2` ставит плагины через pnpm. Достаточно адреса GitHub:
+DeepSeek Harness `0.1.7-rc.2` ставит плагины через pnpm. Достаточно адреса GitHub:
 
 ```sh
 dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 ```
 
-Перезапустите `dsh` и откройте Настройки → Плагины → ClineBot.
+Перезапустите `dsh`. **ClineBot** есть на боковой панели настроек. Страница **Плагины** тоже открывает его из строки `dsh-clinebot` внутри `dsh-clinepass`. Пункт «Встроенные плагины» в настройках только показывает список и больше не содержит эту карточку.
 
 Боковая витрина (`dsh-market`) не требует npm. Установка оттуда вызывает
 `dsh plugin add github:владелец/репозиторий`. `npm publish` нужен только для
@@ -54,8 +54,9 @@ DSH считает переменную источником только для
 из `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` — обычный id
 ClinePass и модель проверки связи по умолчанию.
 
-Проверенный хост: DeepSeek Harness `0.1.5-rc.2`. Карточка —
-`settings.plugin.item`.
+Проверенный хост: DeepSeek Harness `0.1.7-rc.2`. Пункт в настройках —
+`settings.section` `dsh-clinebot`. Та же страница зарегистрирована как
+`plugins.row.config` с ключом `dsh-clinepass#dsh-clinebot`.
 
 ## Конфигурация
 

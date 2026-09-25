@@ -14,6 +14,7 @@ const files = [
   'test/settings-guard.test.js',
   'test/request-shape.test.js',
   'test/client-bundle.test.js',
+  'test/token-count.test.js',
 ]
 execFileSync(process.execPath, ['--test', ...files], {
   cwd: root,
