@@ -319,6 +319,47 @@ function SettingsPage(props) {
     }
   }
 
+  function accountMessage(code) {
+    const key = {
+      bad_env: 'accounts.bad_env',
+      primary: 'accounts.primary',
+      missing_key: 'accounts.missing_key',
+      missing_account: 'accounts.missing_account',
+      settings: 'accounts.settings_down',
+      credentials_unavailable: 'accounts.secret_kept',
+    }[code]
+    return key ? t(key) : String(code || '')
+  }
+
+  async function postAccount(path, body, busyName) {
+    setBusy(busyName)
+    try {
+      const res = await fetch(`${ROUTE_PREFIX}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) return { ok: false, message: accountMessage(data.error || `HTTP ${res.status}`) }
+      await load()
+      return { ok: true, ...data }
+    } catch (error) {
+      return { ok: false, message: String(error.message || error) }
+    } finally {
+      setBusy('')
+    }
+  }
+
+  function handleAddAccount(body) {
+    return postAccount('/accounts', body, 'add-account').then((result) => (
+      result?.ok ? { ok: true, message: t('accounts.saved') } : result
+    ))
+  }
+
+  function handleDeleteAccount(body) {
+    return postAccount('/accounts/delete', body, 'delete-account')
+  }
+
   async function handlePinAccount(accountEnv) {
     setBusy('pin-account')
     setErr('')
@@ -329,7 +370,7 @@ function SettingsPage(props) {
         body: JSON.stringify({ account: accountEnv }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      if (!res.ok || !data.ok) throw new Error(accountMessage(data.error || `HTTP ${res.status}`))
       await load()
     } catch (e) {
       setErr(String(e.message || e))
@@ -509,7 +550,7 @@ function SettingsPage(props) {
     }),
 
     // Accounts Pool Card
-    React.createElement(AccountsSection, { status, busy, handlePinAccount, t }),
+    React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }),
 
     // Quota Warning & Dashboard Card
     React.createElement(QuotaSection, { keyPresent, status, usage, busy, handleRefreshQuota, t }),

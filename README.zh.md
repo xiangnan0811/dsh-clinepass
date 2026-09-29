@@ -37,6 +37,7 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 - 把勾选的模型注册进 DSH。最大输出不会写成 `max_tokens`，请求预算才会。默认预算是 65536。
 - 冒烟测试可以选择模型。Muse Spark 使用 `reasoning_effort: low` 和 1024 的输出上限，避免思考把正文挤空。
 - 会话表只统计插件冒烟测试和 `/cline test`。
+- 同一张账号卡可以保存额外的 `CLINEBOT_API_KEY_*`。之后的 DSH 对话如果收到 HTTP 429 或 402，会改用下一个已保存的账号。`/cline` 输出纯文本。
 
 `api.cline.bot` 的 `GET /api/v1/models` 返回 404。有密钥时，发现走 `GET /users/me/plan`。`cline-pass/deepseek-v4.1-flash` 是普通 ClinePass 模型，也是默认冒烟模型。
 

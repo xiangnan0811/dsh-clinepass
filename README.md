@@ -50,6 +50,9 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   `reasoning_effort: low` and a 1024-token cap so the short reply is not
   swallowed by reasoning.
 - Counts only plugin smoke tests and `/cline test` in the session table.
+- Saves extra `CLINEBOT_API_KEY_*` accounts on the same card. A later DSH turn
+  that gets HTTP 429 or 402 switches to the next saved account. `/cline`
+  prints plain text.
 
 `GET /api/v1/models` on api.cline.bot returns 404. With a key, discovery reads
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass

@@ -22,6 +22,7 @@
 .cb-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .cb-field{display:flex;flex-direction:column;gap:6px;margin:12px 0}
 .cb-field-label{font-size:12px;color:var(--dsw-alias-label-secondary)}
+.cb-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dsw-alias-label-primary)}
 .cb-grid-2{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px}
 
 .cb-badge{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);display:inline-flex;align-items:center;gap:5px;font-weight:500}

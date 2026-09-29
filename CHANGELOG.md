@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.4
+
+`/cline` returns a DeepSeek Harness command result, `{ kind, text }`, as plain
+text. The accounts card can save another `CLINEBOT_API_KEY_*` credential and
+remove it from the pool. The primary key stays in the key section, and adding
+an account does not call the model API. A later DSH turn switches to the next
+saved account when ClinePass rate-limits or exhausts the account: the harness
+finish codes `RATE_LIMIT` and `QUOTA`, HTTP status 429 or 402, or those status
+numbers in the error text. A sentence that only mentions quota or credit does
+not switch. Switching happens at most once every 30 seconds, and only to a
+saved account. The session table still counts only smoke tests and
+`/cline test`.
+
 ## 0.5.3
 
 Muse Spark 1.3 Contributor registers its supported reasoning efforts
