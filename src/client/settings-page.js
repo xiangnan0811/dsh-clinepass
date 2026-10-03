@@ -52,6 +52,7 @@ function SettingsPage(props) {
   const [msg, setMsg] = React.useState('')
   const [smokeResult, setSmokeResult] = React.useState(null)
   const [smokeModel, setSmokeModel] = React.useState('')
+  const [accountUsage, setAccountUsage] = React.useState([])
 
   // Plugin in-app updater state
   const [updateState, setUpdateState] = React.useState({
@@ -99,6 +100,20 @@ function SettingsPage(props) {
     setBaseUrlInput(data.config?.baseUrl || '')
     const choices = smokeChoices(data.availableModels, data.config)
     setSmokeModel((current) => (current && choices.some((model) => model.id === current) ? current : pickSmokeModel(data.config, choices)))
+    const present = (data.accounts || []).filter((account) => account.present).length
+    if (present < 2) {
+      setAccountUsage([])
+      return
+    }
+    try {
+      const extra = await fetch(`${ROUTE_PREFIX}/usage/accounts`, { cache: 'no-store' })
+      const rows = await extra.json().catch(() => ({}))
+      if (!extra.ok || !rows.ok) throw new Error(rows.error || `HTTP ${extra.status}`)
+      setAccountUsage(Array.isArray(rows.accounts) ? rows.accounts : [])
+    } catch (e) {
+      setAccountUsage([])
+      setErr(String(e.message || e))
+    }
   }, [])
 
   React.useEffect(() => {
@@ -223,6 +238,13 @@ function SettingsPage(props) {
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setStatus((prev) => (prev ? { ...prev, usage: data } : prev))
+      const present = (status?.accounts || []).filter((account) => account.present).length
+      if (present > 1) {
+        const extra = await fetch(`${ROUTE_PREFIX}/usage/accounts?fresh=1`, { cache: 'no-store' })
+        const rows = await extra.json().catch(() => ({}))
+        if (!extra.ok || !rows.ok) throw new Error(rows.error || `HTTP ${extra.status}`)
+        setAccountUsage(Array.isArray(rows.accounts) ? rows.accounts : [])
+      }
       setMsg(t('quota.refreshed_msg'))
     } catch (e) {
       setErr(String(e.message || e))
@@ -557,7 +579,7 @@ function SettingsPage(props) {
     React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }),
 
     // Quota Warning & Dashboard Card
-    React.createElement(QuotaSection, { keyPresent, status, usage, busy, handleRefreshQuota, t }),
+    React.createElement(QuotaSection, { keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t }),
 
     // Card 3: Model Picker Management
     React.createElement(ModelsSection, {

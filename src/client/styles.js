@@ -63,6 +63,12 @@
 .cb-quota-pct-warn{color:var(--dsw-alias-state-warning-primary)}
 .cb-quota-pct-bad{color:var(--dsw-alias-state-error-primary)}
 .cb-quota-reset{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary)}
+.cb-email-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.cb-email-toggle{padding:2px 8px;font-size:12px}
+.cb-quota-scroll{margin-top:10px;overflow-x:auto}
+.cb-quota-others{margin-top:0}
+.cb-quota-others th,.cb-quota-others td{white-space:nowrap}
+.cb-quota-others td:first-child,.cb-quota-others th:first-child{white-space:normal;overflow-wrap:anywhere}
 .cb-bar-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--dsw-alias-label-secondary)}
 
 .cb-num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}

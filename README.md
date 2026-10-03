@@ -43,13 +43,18 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 - Saves the API address and the ClinePass key.
 - Shows 5-hour, weekly, and monthly usage from
   `GET /users/me/plan/usage-limits`, with the percent, a meter, and a reset
-  date. Account, plan, and last fetch time are separate rows.
+  date. Account, plan, and last fetch time are separate rows. The account
+  email is masked until you choose Show email. A cancellation timestamp from the plan is an extra row.
+  When more than one key is saved, the other accounts are listed with their
+  three percents. That list does not change which account is chosen after a
+  rate limit.
 - Registers the selected models into DSH. The output cap is not sent as
   `max_tokens`. The request budget is. The default budget is 65536.
 - Lets you pick the smoke-test model. Muse Spark uses
   `reasoning_effort: low` and a 1024-token cap so the short reply is not
   swallowed by reasoning.
-- Counts only plugin smoke tests and `/cline test` in the session table.
+- Counts finished ClinePass streams, plugin smoke tests, and `/cline test`
+  in the session table. The table does not keep prompt text.
 - Saves extra `CLINEBOT_API_KEY_*` accounts on the same card. The pool name is
   saved before the secret. If the secret is not stored, that new name is
   removed. A later DSH turn that gets HTTP 429 or 402 switches to the next

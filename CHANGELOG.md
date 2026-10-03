@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.5.6
+
+The settings card masks the account email until Show email is chosen. The
+choice is not saved, so the next visit starts masked. `/cline` stays masked.
+A plan payload with `canceledAt` or `cancelAt` adds that timestamp, and
+`cancelAtPeriodEnd` adds a separate line. A plan name containing `[Internal]`
+is not used as the label. When more than one key is saved, the card lists the
+other accounts' 5-hour, weekly, and monthly percents. That list does not fill
+the cache used to choose the next account after HTTP 429 or 402. The session
+table counts finished ClinePass streams as well as smoke tests and `/cline
+test`. It keeps the model name and, when a stream chunk already includes one,
+the upstream name. It does not keep prompt text.
+
 ## 0.5.5
 
 Adding an account stores the pool name before the secret. If the secret is not

@@ -12,7 +12,7 @@ import {
 } from '../lib/models.js'
 import { buildProviderPayload } from '../lib/provider-payload.js'
 import { activeCredentialEnv } from '../lib/account-pool.js'
-import { applyCatalogIdentity, buildPiAiProvider, catalogChange, clearUsageCache, explainCredentialWriteError, fetchUsageLimits, smokeChat, smokeRequestBody, usageCacheKey } from '../lib/cline-client.js'
+import { applyCatalogIdentity, buildPiAiProvider, catalogChange, clearUsageCache, collectAccountUsage, explainCredentialWriteError, fetchUsageLimits, maskAccountEmail, presentUsage, readPlanPresentation, smokeChat, smokeRequestBody, usageCache, usageCacheKey } from '../lib/cline-client.js'
 import { migrateStoredConfig, noteUserWrite } from '../lib/provider-sync.js'
 import { invalidateModelsDiskCache, loadModelsDiskCache, resolveModelsCachePath, saveModelsDiskCache } from '../lib/model-cache.js'
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
@@ -443,6 +443,101 @@ test('migration does not replace config after a newer write starts', async () =>
 test('an environment-shadowed credential write explains how to unset it', () => {
   const message = explainCredentialWriteError(new Error('credentials-local: "CLINEBOT_API_KEY" is supplied read-only by the launching environment, so set would be shadowed'), 'CLINEBOT_API_KEY')
   assert.match(message, /unset CLINEBOT_API_KEY/)
+})
+
+function usageFetch(plan) {
+  return async (url) => {
+    const target = String(url)
+    if (target.endsWith('/users/me/plan/usage-limits')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { limits: [{ type: '5-hour', percentUsed: 12, resetsAt: '2026-10-03T00:00:00Z' }] } }),
+        text: async () => '',
+      }
+    }
+    if (target.endsWith('/users/me/plan')) {
+      return { ok: true, status: 200, json: async () => ({ data: { plan } }), text: async () => '' }
+    }
+    if (target.endsWith('/users/me')) {
+      return { ok: true, status: 200, json: async () => ({ data: { email: 'alice@example.com' } }), text: async () => '' }
+    }
+    return { ok: false, status: 404, json: async () => ({}), text: async () => '' }
+  }
+}
+
+test('plan labels skip internal names and keep a cancellation timestamp', async () => {
+  assert.equal(maskAccountEmail(''), '')
+  assert.equal(maskAccountEmail('not-an-email'), '')
+  assert.equal(maskAccountEmail('alice@example.com'), 'a•••@example.com')
+  const internal = readPlanPresentation({
+    displayName: 'Cline Pass [Internal]',
+    title: 'Cline Pass',
+    pricePerSeatCents: 999,
+    canceledAt: '2026-11-01T00:00:00Z',
+    cancelAtPeriodEnd: true,
+  })
+  assert.equal(internal.label, 'Cline Pass ($9.99/mo)')
+  assert.equal(internal.canceledAt, '2026-11-01T00:00:00Z')
+  assert.equal(internal.cancelAtPeriodEnd, true)
+  const hidden = readPlanPresentation({ name: 'Secret [Internal]', cancelAt: '2026-12-01T00:00:00Z', cancelAtPeriodEnd: 'yes' })
+  assert.equal(hidden.label, 'ClinePass ($9.99/mo)')
+  assert.equal(hidden.canceledAt, '2026-12-01T00:00:00Z')
+  assert.equal(hidden.cancelAtPeriodEnd, false)
+  clearUsageCache()
+  const usage = await fetchUsageLimits('https://api.cline.bot/api/v1', `plan-${Date.now()}`, {
+    bypassCache: true,
+    fetchImpl: usageFetch({
+      displayName: 'Cline Pass [Internal]',
+      title: 'Cline Pass',
+      pricePerSeatCents: 999,
+      canceledAt: '2026-11-01T00:00:00Z',
+      cancelAtPeriodEnd: true,
+    }),
+  })
+  assert.equal(usage.plan, 'Cline Pass ($9.99/mo)')
+  assert.equal(usage.canceledAt, '2026-11-01T00:00:00Z')
+  assert.equal(usage.user.email, 'alice@example.com')
+  const shown = presentUsage(usage)
+  assert.equal(shown.user.email, 'a•••@example.com')
+  assert.equal(shown.user.emailFull, 'alice@example.com')
+  assert.equal(usage.user.email, 'alice@example.com')
+  clearUsageCache()
+})
+
+test('account quota reads do not enter the failover cache or the response key', async () => {
+  clearUsageCache()
+  const secret = `pool-secret-${Date.now()}`
+  const other = `pool-other-${Date.now()}`
+  const fetchImpl = async (url, init) => {
+    const auth = init?.headers?.Authorization || ''
+    if (String(url).includes('usage-limits') && auth.includes(other)) {
+      return { ok: false, status: 429, json: async () => ({}), text: async () => 'slow down' }
+    }
+    return usageFetch({ title: 'Cline Pass', pricePerSeatCents: 999 })(url)
+  }
+  const before = usageCache.size
+  const rows = await collectAccountUsage([
+    { label: 'Default', apiKeyEnv: 'CLINEBOT_API_KEY', present: true, value: secret, isPinned: true },
+    { label: 'Work', apiKeyEnv: 'CLINEBOT_API_KEY_WORK', present: true, value: other, isPinned: false },
+    { label: 'Empty', apiKeyEnv: 'CLINEBOT_API_KEY_EMPTY', present: false, value: '', isPinned: false },
+  ], {
+    baseUrl: 'https://api.cline.bot/api/v1',
+    activeEnv: 'CLINEBOT_API_KEY',
+    fresh: true,
+    fetchImpl,
+  })
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].ok, true)
+  assert.equal(rows[0].email, 'a•••@example.com')
+  assert.equal(rows[0].emailFull, 'alice@example.com')
+  assert.equal(rows[1].ok, false)
+  assert.match(rows[1].error, /HTTP 429/)
+  assert.equal(JSON.stringify(rows).includes(secret), false)
+  assert.equal(JSON.stringify(rows).includes(other), false)
+  assert.equal(rows.some((row) => Object.hasOwn(row, 'dynamicModels')), false)
+  assert.equal(usageCache.size, before)
+  clearUsageCache()
 })
 
 test('config schema accepts an explicit empty selection', () => {
