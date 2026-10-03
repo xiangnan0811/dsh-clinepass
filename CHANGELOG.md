@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.5.7
+
+The add-account label, credential name, and key stay hidden until Add
+account is chosen. Cancel clears those fields and closes the form without
+saving. A failed save stays open and keeps its message.
 
 ## 0.5.6
 

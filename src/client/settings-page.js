@@ -71,11 +71,6 @@ function SettingsPage(props) {
   const [baseUrlInput, setBaseUrlInput] = React.useState('')
   const [showKey, setShowKey] = React.useState(false)
 
-  // Accounts state
-  const [newAccountLabel, setNewAccountLabel] = React.useState('')
-  const [newAccountEnv, setNewAccountEnv] = React.useState('')
-  const [showAddAccount, setShowAddAccount] = React.useState(false)
-
   // Filter & Search for Models
   const [modelsFilter, setModelsFilter] = React.useState('all')
   const [modelsSearch, setModelsSearch] = React.useState('')

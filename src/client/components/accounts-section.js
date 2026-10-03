@@ -5,6 +5,7 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
   const [envName, setEnvName] = React.useState('')
   const [secret, setSecret] = React.useState('')
   const [showSecret, setShowSecret] = React.useState(false)
+  const [showForm, setShowForm] = React.useState(false)
   const [notice, setNotice] = React.useState(null)
   const [confirmEnv, setConfirmEnv] = React.useState('')
   const [deleteSecret, setDeleteSecret] = React.useState(false)
@@ -22,7 +23,18 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
       setLabel('')
       setEnvName('')
       setSecret('')
+      setShowSecret(false)
+      setShowForm(false)
     }
+  }
+
+  function closeForm() {
+    setLabel('')
+    setEnvName('')
+    setSecret('')
+    setShowSecret(false)
+    setShowForm(false)
+    setNotice(null)
   }
 
   async function submitDelete() {
@@ -160,48 +172,69 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
           ),
         )
       : null,
-    React.createElement('div', { className: 'cb-section-title' }, t('accounts.add_title')),
-    React.createElement('label', { className: 'cb-field' },
-      React.createElement('span', { className: 'cb-field-label' }, t('accounts.form_label')),
-      React.createElement('input', {
-        className: 'cb-input',
-        value: label,
-        placeholder: t('accounts.label_placeholder'),
-        onChange: (event) => setLabel(event.target.value),
-      }),
-    ),
-    React.createElement('label', { className: 'cb-field' },
-      React.createElement('span', { className: 'cb-field-label' }, t('accounts.form_env')),
-      React.createElement('input', {
-        className: 'cb-input',
-        value: envName,
-        placeholder: t('accounts.env_placeholder'),
-        spellCheck: false,
-        onChange: (event) => setEnvName(event.target.value),
-      }),
-    ),
-    React.createElement('label', { className: 'cb-field' },
-      React.createElement('span', { className: 'cb-field-label' }, t('accounts.form_secret')),
-      React.createElement('div', { className: 'cb-input-group' },
-        React.createElement('input', {
-          className: 'cb-input',
-          type: showSecret ? 'text' : 'password',
-          value: secret,
-          onChange: (event) => setSecret(event.target.value),
-        }),
-        React.createElement('button', {
-          type: 'button',
-          className: 'cb-btn',
-          onClick: () => setShowSecret((value) => !value),
-        }, showSecret ? t('key.hide') : t('key.show')),
-        React.createElement('button', {
-          type: 'button',
-          className: 'cb-btn cb-btn-primary',
-          disabled: !!busy || !String(secret || '').trim(),
-          onClick: submitAccount,
-        }, busy === 'add-account' ? t('accounts.saving') : t('accounts.save')),
-      ),
-    ),
+    showForm
+      ? React.createElement(React.Fragment, null,
+          React.createElement('div', { className: 'cb-section-title' }, t('accounts.add_title')),
+          React.createElement('label', { className: 'cb-field' },
+            React.createElement('span', { className: 'cb-field-label' }, t('accounts.form_label')),
+            React.createElement('input', {
+              className: 'cb-input',
+              value: label,
+              placeholder: t('accounts.label_placeholder'),
+              autoFocus: true,
+              onChange: (event) => setLabel(event.target.value),
+            }),
+          ),
+          React.createElement('label', { className: 'cb-field' },
+            React.createElement('span', { className: 'cb-field-label' }, t('accounts.form_env')),
+            React.createElement('input', {
+              className: 'cb-input',
+              value: envName,
+              placeholder: t('accounts.env_placeholder'),
+              spellCheck: false,
+              onChange: (event) => setEnvName(event.target.value),
+            }),
+          ),
+          React.createElement('label', { className: 'cb-field' },
+            React.createElement('span', { className: 'cb-field-label' }, t('accounts.form_secret')),
+            React.createElement('div', { className: 'cb-input-group' },
+              React.createElement('input', {
+                className: 'cb-input',
+                type: showSecret ? 'text' : 'password',
+                value: secret,
+                onChange: (event) => setSecret(event.target.value),
+              }),
+              React.createElement('button', {
+                type: 'button',
+                className: 'cb-btn',
+                onClick: () => setShowSecret((value) => !value),
+              }, showSecret ? t('key.hide') : t('key.show')),
+              React.createElement('button', {
+                type: 'button',
+                className: 'cb-btn cb-btn-primary',
+                disabled: !!busy || !String(secret || '').trim(),
+                onClick: submitAccount,
+              }, busy === 'add-account' ? t('accounts.saving') : t('accounts.save')),
+            ),
+          ),
+          React.createElement('div', { className: 'cb-editor-actions' },
+            React.createElement('button', {
+              type: 'button',
+              className: 'cb-btn',
+              disabled: !!busy,
+              onClick: closeForm,
+            }, t('accounts.cancel')),
+          ),
+        )
+      : React.createElement('div', { className: 'cb-account-add' },
+          React.createElement('button', {
+            type: 'button',
+            className: 'cb-btn',
+            'aria-expanded': false,
+            disabled: !!busy,
+            onClick: () => setShowForm(true),
+          }, t('accounts.add_btn')),
+        ),
     notice
       ? React.createElement('div', { className: notice.ok ? 'cb-alert-ok' : 'cb-alert-bad' }, notice.message)
       : null,

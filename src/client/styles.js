@@ -84,6 +84,7 @@
 .cb-editor .cb-field{margin:0}
 .cb-editor-note{grid-column:1/-1}
 .cb-editor-actions{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.cb-account-add{margin-top:12px}
 .cb-editor .cb-alert-ok,.cb-editor .cb-alert-bad{grid-column:1/-1;margin:0}
 .cb-facts th{width:140px}
 .cb-facts a{color:var(--dsw-alias-state-brand-primary)}
