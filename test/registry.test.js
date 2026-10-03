@@ -12,10 +12,10 @@ import {
 } from '../lib/models.js'
 import { buildProviderPayload } from '../lib/provider-payload.js'
 import { activeCredentialEnv } from '../lib/account-pool.js'
-import { buildPiAiProvider, explainCredentialWriteError, fetchUsageLimits, smokeChat, smokeRequestBody } from '../lib/cline-client.js'
+import { applyCatalogIdentity, buildPiAiProvider, catalogChange, clearUsageCache, explainCredentialWriteError, fetchUsageLimits, smokeChat, smokeRequestBody, usageCacheKey } from '../lib/cline-client.js'
 import { migrateStoredConfig, noteUserWrite } from '../lib/provider-sync.js'
-import { loadModelsDiskCache, resolveModelsCachePath, saveModelsDiskCache } from '../lib/model-cache.js'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { invalidateModelsDiskCache, loadModelsDiskCache, resolveModelsCachePath, saveModelsDiskCache } from '../lib/model-cache.js'
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -70,7 +70,7 @@ test('plan models that the API already returned are in the maintained catalog', 
   assert.equal(museOff.reasoningEfforts, false)
 })
 
-test('usage limits keep monthly and smoke chat uses the configured API', async () => {
+test('usage limits keep the monthly window', async () => {
   const usage = await fetchUsageLimits('https://api.cline.bot/api/v1', `quota-${Date.now()}`, {
     bypassCache: true,
     fetchImpl: async (url) => {
@@ -95,7 +95,30 @@ test('usage limits keep monthly and smoke chat uses the configured API', async (
   assert.equal(usage.windows.fiveHour.percentUsed, 0)
   assert.equal(usage.windows.weekly.percentUsed, 39)
   assert.equal(usage.windows.monthly.percentUsed, 19)
+})
 
+test('usage cache entries stay apart when credentials share a suffix', async () => {
+  clearUsageCache()
+  let calls = 0
+  const fetchImpl = async (url) => {
+    if (String(url).includes('usage-limits')) calls += 1
+    return { ok: true, status: 200, json: async () => ({ data: { limits: [] } }), text: async () => '' }
+  }
+  const shared = 'shared99'
+  const keyA = `alpha-${shared}`
+  const keyB = `beta-${shared}`
+  const base = 'https://api.cline.bot/api/v1'
+  await fetchUsageLimits(base, keyA, { fetchImpl })
+  await fetchUsageLimits(base, keyA, { fetchImpl })
+  await fetchUsageLimits(base, keyB, { fetchImpl })
+  await fetchUsageLimits('https://api.example.test/api/v1', keyA, { fetchImpl })
+  assert.equal(calls, 3)
+  assert.notEqual(usageCacheKey(base, keyA), usageCacheKey(base, keyB))
+  assert.equal(usageCacheKey(base, keyA).includes(keyA), false)
+  clearUsageCache()
+})
+
+test('smoke chat uses the configured API', async () => {
   let called = ''
   const smoke = await smokeChat('https://api.cline.bot/api/v1', 'test-key', {
     model: 'cline-pass/deepseek-v4-flash',
@@ -256,6 +279,36 @@ test('route reasoning is omitted when any selected model cannot take it', () => 
   assert.match(built.reasoningWarning, /was not applied/)
 })
 
+test('a new address or account pin drops the previous plan read', () => {
+  const previous = {
+    baseUrl: 'https://api.cline.bot/api/v1',
+    apiKeyEnv: 'CLINEBOT_API_KEY',
+    activeAccount: '',
+    discoveredPlanIds: ['cline-pass/glm-5.2', 'cline-pass/some-brand-new-model'],
+    dynamicModels: [{ id: 'cline-pass/old', name: 'Old' }],
+    customModels: [
+      { id: 'cline-pass/mine', name: 'Mine' },
+      { id: 'cline-pass/some-brand-new-model', name: 'Some Brand New Model' },
+    ],
+  }
+  const drafted = { ...previous, timeoutMs: 1000 }
+  assert.equal(applyCatalogIdentity(previous, drafted), drafted)
+  const switched = applyCatalogIdentity(previous, { ...previous, activeAccount: 'CLINEBOT_API_KEY_2' })
+  assert.equal(switched.activeAccount, 'CLINEBOT_API_KEY_2')
+  assert.deepEqual(switched.discoveredPlanIds, [])
+  assert.deepEqual(switched.dynamicModels, [])
+  assert.deepEqual(switched.customModels, [{ id: 'cline-pass/mine', name: 'Mine' }])
+  const renamed = applyCatalogIdentity(previous, { ...previous, apiKeyEnv: 'CLINEBOT_API_KEY_WORK' })
+  assert.deepEqual(renamed.discoveredPlanIds, [])
+  const first = catalogChange(null, previous)
+  assert.equal(first.reset, false)
+  const second = catalogChange(first.seen, { ...previous, baseUrl: 'https://example.test/api/v1' })
+  assert.equal(second.reset, true)
+  assert.deepEqual(second.config.discoveredPlanIds, [])
+  const third = catalogChange(second.seen, second.config)
+  assert.equal(third.reset, false)
+})
+
 test('discovery merge updates ids without dropping custom models', () => {
   const merged = mergeDiscovered({
     discoveredPlanIds: ['cline-pass/glm-5.2'],
@@ -285,8 +338,46 @@ test('cache keeps a version and a failed read does not invent an empty catalog',
     assert.equal(await saveModelsDiskCache(file, { discoveredIds: [], unknownModels: [] }), false)
     assert.equal(await saveModelsDiskCache(file, { discoveredIds: ['cline-pass/glm-5.2'], unknownModels: [] }), true)
     const fresh = await loadModelsDiskCache(file)
-    assert.equal(fresh.version, 2)
+    assert.equal(fresh.version, 3)
     assert.deepEqual(fresh.discoveredIds, ['cline-pass/glm-5.2'])
+    const identity = {
+      baseUrl: 'https://api.cline.bot/api/v1',
+      apiKeyEnv: 'CLINEBOT_API_KEY',
+      activeAccount: '',
+    }
+    assert.equal(await saveModelsDiskCache(file, {
+      discoveredIds: ['cline-pass/glm-5.2'],
+      unknownModels: [],
+      identity,
+    }), true)
+    const matched = await loadModelsDiskCache(file, identity)
+    assert.equal(matched.stale, false)
+    assert.deepEqual(matched.discoveredIds, ['cline-pass/glm-5.2'])
+    const otherAccount = await loadModelsDiskCache(file, { ...identity, activeAccount: 'CLINEBOT_API_KEY_2' })
+    assert.equal(otherAccount.stale, true)
+    assert.equal(otherAccount.identityMismatch, true)
+    assert.deepEqual(otherAccount.discoveredIds, [])
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('removing the plan cache deletes the file and treats a missing file as done', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'clinebot-cache-drop-'))
+  const file = path.join(dir, 'models.json')
+  const blocked = path.join(dir, 'blocked')
+  try {
+    assert.equal(await invalidateModelsDiskCache(''), false)
+    assert.equal(await invalidateModelsDiskCache(file), true)
+    assert.equal(await saveModelsDiskCache(file, {
+      discoveredIds: ['cline-pass/glm-5.2'],
+      unknownModels: [{ id: 'cline-pass/old-plan-only', name: 'Old Plan Only' }],
+    }), true)
+    assert.equal(await invalidateModelsDiskCache(file), true)
+    assert.equal(await loadModelsDiskCache(file), null)
+    await mkdir(blocked)
+    assert.equal(await invalidateModelsDiskCache(blocked), false)
+    assert.equal((await stat(blocked)).isDirectory(), true)
   } finally {
     await rm(dir, { recursive: true, force: true })
   }

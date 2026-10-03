@@ -11,6 +11,7 @@ import {
   resolveSaveKeyEnv,
   rotateToNextAccount,
   upsertAccount,
+  commitAddedAccount,
   getLastRotation,
 } from '../lib/account-pool.js'
 
@@ -64,4 +65,110 @@ test('a one-account pool does not record a failover', async () => {
   rememberRotation({ at: 1, reason: 'stream_429', from: 'A', to: 'B' })
   assert.equal(getLastRotation().to, 'B')
   resetRotationMemory()
+})
+
+test('an added account is named in settings before the secret is stored', async () => {
+  const previous = { apiKeyEnv: 'CLINEBOT_API_KEY', accounts: [], timeoutMs: 15000 }
+  const added = upsertAccount(previous, { label: 'Work' })
+  const order = []
+  let stored = previous
+  const saved = await commitAddedAccount({
+    previous,
+    added,
+    readFresh: () => stored,
+    replace: async (cfg) => {
+      order.push('replace')
+      stored = cfg
+    },
+    saveSecret: async () => {
+      order.push('secret')
+    },
+  })
+  assert.deepEqual(order, ['replace', 'secret'])
+  assert.equal(saved.ok, true)
+  assert.equal(stored.accounts[0].apiKeyEnv, 'CLINEBOT_API_KEY_2')
+  assert.equal(stored.timeoutMs, 15000)
+
+  stored = previous
+  let secrets = 0
+  await assert.rejects(() => commitAddedAccount({
+    previous,
+    added,
+    readFresh: () => stored,
+    replace: async () => { throw new Error('settings down') },
+    saveSecret: async () => { secrets += 1 },
+  }), /settings down/)
+  assert.equal(secrets, 0)
+
+  stored = previous
+  const failed = await commitAddedAccount({
+    previous,
+    added,
+    readFresh: () => stored,
+    replace: async (cfg) => { stored = { ...cfg, timeoutMs: 20000 } },
+    saveSecret: async () => { throw new Error('shadowed') },
+  })
+  assert.equal(failed.partial, false)
+  assert.equal(failed.error, 'shadowed')
+  assert.deepEqual(stored.accounts, [])
+  assert.equal(stored.timeoutMs, 20000)
+
+  const prior = { ...previous, accounts: [{ apiKeyEnv: 'CLINEBOT_API_KEY_2', label: 'Old' }] }
+  const renamed = upsertAccount(prior, { label: 'New', apiKeyEnv: 'CLINEBOT_API_KEY_2' })
+  stored = prior
+  const relabel = await commitAddedAccount({
+    previous: prior,
+    added: renamed,
+    readFresh: () => stored,
+    replace: async (cfg) => { stored = cfg },
+    saveSecret: async () => { throw new Error('shadowed') },
+  })
+  assert.equal(relabel.partial, false)
+  assert.equal(stored.accounts[0].label, 'Old')
+
+  stored = { ...previous, accounts: added.accounts }
+  const stuck = await commitAddedAccount({
+    previous,
+    added,
+    readFresh: () => stored,
+    replace: async (cfg) => {
+      if (!(cfg.accounts || []).length) throw new Error('rollback refused')
+      stored = cfg
+    },
+    saveSecret: async () => { throw new Error('shadowed') },
+  })
+  assert.equal(stuck.partial, true)
+  assert.equal(stuck.secretSaved, false)
+  assert.equal(stuck.accountAdded, true)
+  assert.equal(stored.accounts[0].apiKeyEnv, 'CLINEBOT_API_KEY_2')
+})
+
+test('rotation drops the previous account plan list', async () => {
+  const ctx = {
+    credentials: {
+      resolve: async (ref) => ({ value: ref.name === 'CLINEBOT_API_KEY' ? 'primary-key' : 'second-key' }),
+    },
+  }
+  let saved = null
+  const result = await rotateToNextAccount(ctx, {
+    baseUrl: 'https://api.cline.bot/api/v1',
+    apiKeyEnv: 'CLINEBOT_API_KEY',
+    activeAccount: 'CLINEBOT_API_KEY',
+    accounts: [{ apiKeyEnv: 'CLINEBOT_API_KEY_2', label: 'Two' }],
+    discoveredPlanIds: ['cline-pass/glm-5.2', 'cline-pass/some-brand-new-model'],
+    dynamicModels: [{ id: 'cline-pass/old', name: 'Old' }],
+    customModels: [
+      { id: 'cline-pass/mine', name: 'Mine' },
+      { id: 'cline-pass/some-brand-new-model', name: 'New' },
+    ],
+  }, 'stream_429', {
+    replace: async (next) => { saved = next },
+  })
+  assert.equal(result.rotated, true)
+  assert.equal(result.activeAccount, 'CLINEBOT_API_KEY_2')
+  assert.equal(saved.activeAccount, 'CLINEBOT_API_KEY_2')
+  assert.deepEqual(saved.discoveredPlanIds, [])
+  assert.deepEqual(saved.dynamicModels, [])
+  assert.deepEqual(saved.customModels, [{ id: 'cline-pass/mine', name: 'Mine' }])
+  assert.deepEqual(result.config.customModels, saved.customModels)
 })

@@ -50,9 +50,15 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   `reasoning_effort: low` and a 1024-token cap so the short reply is not
   swallowed by reasoning.
 - Counts only plugin smoke tests and `/cline test` in the session table.
-- Saves extra `CLINEBOT_API_KEY_*` accounts on the same card. A later DSH turn
-  that gets HTTP 429 or 402 switches to the next saved account. `/cline`
-  prints plain text.
+- Saves extra `CLINEBOT_API_KEY_*` accounts on the same card. The pool name is
+  saved before the secret. If the secret is not stored, that new name is
+  removed. A later DSH turn that gets HTTP 429 or 402 switches to the next
+  saved account. Switching, that rotation, a new API address, a new primary
+  credential name, or replacing the active key drops the previous plan model
+  list until the next successful plan read. Replacing the active key also
+  removes the saved plan cache, so the old list is not restored from disk.
+  A plan read that has already started cannot put that list back.
+  `/cline` prints plain text.
 
 `GET /api/v1/models` on api.cline.bot returns 404. With a key, discovery reads
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass

@@ -205,6 +205,7 @@ function SettingsPage(props) {
       setMsg(data.validated
         ? t('key.saved_msg', { status: 'OK' })
         : t('key.saved_unverified', { error: data.validationError || `HTTP ${res.status}` }))
+      if (data.warning === 'plan_list') setErr(t('key.plan_kept'))
       await load()
     } catch (e) {
       setErr(String(e.message || e))
@@ -340,7 +341,10 @@ function SettingsPage(props) {
         body: JSON.stringify(body),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok || !data.ok) return { ok: false, message: accountMessage(data.error || `HTTP ${res.status}`) }
+      if (!res.ok || !data.ok) {
+        const message = accountMessage(data.error || `HTTP ${res.status}`)
+        return { ok: false, message: data.partial ? `${message} ${t('accounts.partial')}` : message }
+      }
       await load()
       return { ok: true, ...data }
     } catch (error) {

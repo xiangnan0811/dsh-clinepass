@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+## 0.5.5
+
+Adding an account stores the pool name before the secret. If the secret is not
+stored, that new name is removed. If removing it also fails, the response says
+the name stayed in the pool and the key was not saved. Replacing the active
+key, switching accounts, rotating after HTTP 429 or 402, or changing the API
+address or primary credential name drops the previous plan model list until
+the next successful plan read. Replacing the active key also removes the saved
+plan cache, so that list is not restored from disk. A plan read that was
+already running cannot put that list back. A custom model the last plan read
+did not name stays. Usage lookups are cached separately for each API address
+and credential. A model cache written for another account or address is not
+loaded as the current plan.
+
 ## 0.5.4
 
 `/cline` returns a DeepSeek Harness command result, `{ kind, text }`, as plain
