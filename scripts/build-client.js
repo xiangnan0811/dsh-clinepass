@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, statSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
@@ -9,6 +9,7 @@ const outFile = path.join(root, 'lib', 'client.js')
 
 const files = [
   'constants.js',
+  'request.js',
   'locales.js',
   'chevron.js',
   'styles.js',
@@ -16,9 +17,11 @@ const files = [
   'progress-bar.js',
   'components/update-banner.js',
   'components/key-section.js',
+  'components/key-discovery.js',
   'components/accounts-section.js',
   'components/quota-section.js',
   'token-count.js',
+  'components/model-tools.js',
   'components/models-section.js',
   'components/stats-section.js',
   'components/diag-section.js',
@@ -49,11 +52,19 @@ ${parts.join('\n\n')}
 })
 `
 
-writeFileSync(outFile, bundle, 'utf8')
-const stats = statSync(outFile)
-console.log(`[build-client] Rebuilt lib/client.js: ${stats.size} bytes (< 256 KiB limit)`)
+const size = Buffer.byteLength(bundle)
+const check = process.argv.includes('--check')
+if (check) {
+  if (readFileSync(outFile, 'utf8') !== bundle) {
+    console.error('[build-client] lib/client.js is stale. Run npm run build:client.')
+    process.exit(1)
+  }
+} else {
+  writeFileSync(outFile, bundle, 'utf8')
+}
+console.log(`[build-client] ${check ? 'Checked' : 'Rebuilt'} lib/client.js: ${size} bytes (< 256 KiB limit)`)
 
-if (stats.size > 262144) {
+if (size > 262144) {
   console.error('[build-client] ERROR: lib/client.js exceeds official DSH Store limit (262144 bytes)!')
   process.exit(1)
 }

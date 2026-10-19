@@ -26,6 +26,10 @@ function UpdateBanner({ updateState, handleTriggerUpdate, t }) {
           ? React.createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary)', fontSize: '12px' } },
               t('update.checking')
             )
+          : updateState.error
+            ? null
+          : updateState.disabled
+            ? React.createElement('span', { className: 'cb-badge' }, t('update.disabled'))
           : updateState.updateAvailable
             ? React.createElement('span', { className: 'cb-badge cb-badge-warn' },
                 t('update.available', { latestVersion: updateState.latestVersion, currentVersion: updateState.currentVersion })

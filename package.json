@@ -22,7 +22,8 @@
     "README.zh.md",
     "CHANGELOG.md",
     "LICENSE",
-    "docs/maintenance/VALIDATION.md"
+    "docs/maintenance/VALIDATION.md",
+    "docs/maintenance/UPSTREAM_SYNC_PLAN.md"
   ],
   "keywords": [
     "dsh",
@@ -42,7 +43,9 @@
   },
   "scripts": {
     "build:client": "node scripts/build-client.js",
-    "test": "node scripts/build-client.js && node scripts/run-tests.js"
+    "check:client": "node scripts/build-client.js --check",
+    "lint": "eslint lib scripts test",
+    "test": "npm run check:client && npm run lint && node scripts/run-tests.js"
   },
   "engines": {
     "node": ">=20"
@@ -77,6 +80,9 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-settings": "^0.1.5-rc.2",
-    "@deepseek-ai/schemastery": "^3.18.2"
+    "@deepseek-ai/schemastery": "^3.18.2",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0"
   }
 }

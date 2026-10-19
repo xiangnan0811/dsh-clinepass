@@ -1,4 +1,4 @@
-function KeySection({ keyPresent, apiKeyInput, setApiKeyInput, showKey, setShowKey, busy, draft, baseUrlInput, setBaseUrlInput, handleSaveKey, handleSaveBaseUrl, handleFastLogin, t }) {
+function KeySection({ keyPresent, apiKeyInput, setApiKeyInput, showKey, setShowKey, busy, draft, baseUrlInput, setBaseUrlInput, handleSaveKey, handleSaveBaseUrl, handleFastLogin, onImported, t }) {
   const base = String(draft?.baseUrl || '')
   const localApi = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(?::|\/|$)/i.test(base)
   return React.createElement(
@@ -73,6 +73,7 @@ function KeySection({ keyPresent, apiKeyInput, setApiKeyInput, showKey, setShowK
       )
       ),
     ),
+    React.createElement(KeyDiscoverySection, { apiKeyInput, onImported, t }),
     React.createElement(
       'table',
       { className: 'cb-table cb-facts' },

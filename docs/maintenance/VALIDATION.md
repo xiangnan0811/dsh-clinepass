@@ -2,7 +2,51 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
-## Current host
+## Sync implementation in progress
+
+P1 and the model/credential management portion of P2 in the
+[sync plan](UPSTREAM_SYNC_PLAN.md) were implemented on 2026-10-19. The complete
+plan remains open: per-model effort defaults, proxy/routing, durable analytics,
+new usage surfaces, search, updates and final platform acceptance are not done.
+
+- `npm test`: 71 passed, including the installed next Schemastery (volatile
+  configuration values), installed adapter wire capture, complete plugin-route
+  authentication boundary (18 routes), body/header timeouts, cancellation,
+  plan/account races, model CRUD/default precedence, retained host edits and
+  independent key validation. The client is 118462 bytes. Tests now check the
+  generated bundle without rewriting it and run `no-undef` before the suite.
+- Isolated CLI Web on installed DSH `0.2.1-rc.2` (npm `next` rechecked): the
+  browser saved a batch context of 128000 and a custom model with a 64000 context,
+  registered none, and restored all. Failed key validation recovered to success;
+  status confirmed validation had not saved a secret. A fake credential and
+  local mock plan enabled exactly the two returned plan models.
+- Native provider edits were checked through the profile's actual stored model
+  document: setting its request budget to 2048, hiding all models, restarting,
+  and registering them again retained 2048, the custom declaration, verified plan
+  and filtering. Captured edits are durable `hostModelOverrides`; restoring
+  capabilities leaves request budgets intact.
+- Real Chromium screenshots were inspected in light and dark themes. At 1280px
+  the card is usable and warning/business tokens resolve. At 390px the host's
+  fixed settings sidebar leaves approximately 101px for the plugin. The plugin
+  no longer overflows horizontally, but this is not mobile usability acceptance;
+  P5/P8 must still provide and verify the planned standalone detail surface.
+- Key discovery tests use disposable project-local fixture homes and fake keys;
+  no interactive Cline/VS Code/Cursor files were scanned. The independent
+  validation endpoint was exercised against a local server and did not write
+  credentials or settings. Native discovery/import acceptance remains open.
+- Missing percentages and prices stay unknown; malformed limits responses fail,
+  and a successful usage response without plan membership does not verify an
+  empty plan. Update checks report disabled/failure separately from up-to-date.
+- This pass used a checkout-linked plugin and a local mock at `127.0.0.1:38909`.
+  No real ClinePass model/credential, Desktop app, global installation or
+  interactive DSH profile was used. The final management candidate was also
+  packed (55 files, client 118462 bytes, no scratch or credentials), installed
+  into the isolated profile and booted. A batch change preserved the host budget
+  of 2048, and two concurrent fake account additions allocated distinct `_2`
+  and `_3` names. The installer reported missing host peers in the profile tree;
+  runtime loading succeeded. Packed acceptance of the complete plan remains P8.
+
+## Previous next baseline
 
 Unreleased candidate above `dsh-clinepass@0.5.7`, checked on 2026-10-19 with
 DeepSeek Harness `0.2.1-rc.2` (the npm `next` tag on that date). Upstream comparison:

@@ -15,6 +15,21 @@ import {
   getLastRotation,
 } from '../lib/account-pool.js'
 
+test('concurrent automatic account imports allocate distinct names in the write queue', async () => {
+  let cfg = { accounts: [], apiKeyEnv: 'CLINEBOT_API_KEY', defaultModel: 'keep-me' }
+  const secrets = new Map()
+  const add = (label, key) => commitAddedAccount({
+    previous: cfg, added: upsertAccount(cfg, { label }), readFresh: () => cfg,
+    replace: async (next) => { cfg = next },
+    saveSecret: async (name) => { secrets.set(name, key) },
+  })
+  const results = await Promise.all([add('first', 'fake-first'), add('second', 'fake-second')])
+  assert.equal(results.every((result) => result.ok), true)
+  assert.deepEqual(cfg.accounts.map((account) => account.apiKeyEnv), ['CLINEBOT_API_KEY_2', 'CLINEBOT_API_KEY_3'])
+  assert.equal(secrets.size, 2)
+  assert.equal(cfg.defaultModel, 'keep-me')
+})
+
 test('extra account names stay in the ClinePass prefix', () => {
   assert.equal(isPluginKeyEnv('CLINEBOT_API_KEY'), true)
   assert.equal(isPluginKeyEnv('CLINEBOT_API_KEY_2'), true)
@@ -126,7 +141,7 @@ test('an added account is named in settings before the secret is stored', async 
   assert.equal(relabel.partial, false)
   assert.equal(stored.accounts[0].label, 'Old')
 
-  stored = { ...previous, accounts: added.accounts }
+  stored = previous
   const stuck = await commitAddedAccount({
     previous,
     added,

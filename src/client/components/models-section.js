@@ -31,6 +31,9 @@ function ModelsSection({
   keyPresent,
   busy,
   modelsFilter,
+  modelsSearch,
+  setModelsSearch,
+  config,
   providerReasoning,
   handleSyncPlanModels,
   handleSetModelsFilter,
@@ -64,7 +67,7 @@ function ModelsSection({
       setNotice({ id: model.id, ok: false, text: t('models.bad_number') })
       return
     }
-    const result = await saveModelPatch({
+    const result = await saveModelPatch(restore ? { restoreModelCapabilities: model.id } : {
       modelOverride: {
         id: model.id,
         contextWindow: restore ? 'inherit' : counts.contextWindow.value,
@@ -102,6 +105,8 @@ function ModelsSection({
       )
     ),
     React.createElement('div', { className: 'cb-section-desc' }, t('models.desc')),
+    React.createElement('input', { className: 'cb-input', type: 'search', value: modelsSearch, placeholder: t('models.search'), 'aria-label': t('models.search'), onChange: (event) => setModelsSearch(event.target.value) }),
+    React.createElement(ModelTools, { config, modelsList, saveModelPatch, busy, t }),
     React.createElement(
       'label',
       { className: 'cb-field' },
@@ -122,6 +127,7 @@ function ModelsSection({
           React.createElement('input', {
             type: 'checkbox',
             checked: enabledSet.has(model.id),
+            disabled: !!busy,
             onChange: () => handleToggleModel(model.id),
             'aria-label': model.name,
           }),
@@ -135,6 +141,7 @@ function ModelsSection({
               }, editing === model.id ? t('models.close') : t('models.edit')),
             ),
             React.createElement('span', { className: 'cb-model-id' }, model.id),
+            model.hostEditedFields?.length ? React.createElement('span', { className: 'cb-badge' }, t('models.host_edits')) : null,
             model.channelListed ? null : React.createElement('span', { className: 'cb-badge cb-badge-warn' }, t('models.channel_unlisted')),
             React.createElement('div', { className: 'cb-metrics' },
               [[t('models.th_ctx'), model.contextKnown ? formatK(model.contextLength) : '—'],
@@ -173,6 +180,7 @@ function ModelsSection({
                 disabled: !!busy,
                 onClick: () => saveEditor(model, true),
               }, t('models.restore')),
+              React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: () => saveModelPatch({ modelOverride: { id: model.id, requestOutputBudget: 'inherit' } }) }, t('models.restore_budget')),
             ),
           )
         : null,

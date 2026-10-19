@@ -1,14 +1,30 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { realpathSync } from 'node:fs'
+import { realpathSync, readFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import http from 'node:http'
 import test from 'node:test'
 import { buildProviderPayload } from '../lib/provider-payload.js'
-import { getAllModels } from '../lib/models.js'
+import { getAllModels, selectedIds } from '../lib/models.js'
 
 const require = createRequire(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
 const native = require('@deepseek-ai/dsh-llm-pi-ai')
+
+test('next Schemastery volatile configuration becomes plain before policy reads', async () => {
+  const url = new URL('../lib/config.js', import.meta.url)
+  const code = readFileSync(url, 'utf8').replace(/from '([^']+)'/g, (_match, specifier) => {
+    const target = specifier.startsWith('.') ? new URL(specifier, url).href : pathToFileURL(require.resolve(specifier)).href
+    return `from '${target}'`
+  })
+  const config = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
+  const wrapped = config.Config({ selectionKind: 'explicit', explicitModels: [] })
+  assert.equal(typeof wrapped.disabledModels.get, 'function')
+  const parsed = config.parseConfig({ selectionKind: 'explicit', explicitModels: [], batchModelDefaults: { contextWindow: 128000 } })
+  assert.deepEqual(parsed.disabledModels, [])
+  assert.equal(parsed.batchModelDefaults.contextWindow, 128000)
+  assert.deepEqual(selectedIds(getAllModels(parsed), parsed), [])
+})
 
 test('installed DSH adapter accepts the catalog, request budget, reasoning and credential reference', { timeout: 10000 }, async (t) => {
   let captured

@@ -14,6 +14,9 @@ function pickSmokeModel(config, models) {
 }
 
 function SettingsPage(props) {
+  const request = useClientRequests()
+  const debounceTimerRef = React.useRef(null)
+  const updateTimerRef = React.useRef(null)
   const t = props?.t || makeT(en, en)
   const scope = props?.scope || null
   const scopeError = props?.scopeError || ''
@@ -83,11 +86,15 @@ function SettingsPage(props) {
 
   React.useEffect(() => {
     ensureCss()
+    return () => {
+      clearTimeout(debounceTimerRef.current)
+      clearTimeout(updateTimerRef.current)
+    }
   }, [])
 
   const load = React.useCallback(async () => {
     setErr('')
-    const res = await fetch(`${ROUTE_PREFIX}/status`, { cache: 'no-store' })
+    const res = await request(`${ROUTE_PREFIX}/status`, { cache: 'no-store' })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
     setStatus(data)
@@ -101,7 +108,7 @@ function SettingsPage(props) {
       return
     }
     try {
-      const extra = await fetch(`${ROUTE_PREFIX}/usage/accounts`, { cache: 'no-store' })
+      const extra = await request(`${ROUTE_PREFIX}/usage/accounts`, { cache: 'no-store' })
       const rows = await extra.json().catch(() => ({}))
       if (!extra.ok || !rows.ok) throw new Error(rows.error || `HTTP ${extra.status}`)
       setAccountUsage(Array.isArray(rows.accounts) ? rows.accounts : [])
@@ -109,7 +116,7 @@ function SettingsPage(props) {
       setAccountUsage([])
       setErr(String(e.message || e))
     }
-  }, [])
+  }, [request])
 
   React.useEffect(() => {
     load().catch((e) => setErr(String(e.message || e)))
@@ -118,9 +125,10 @@ function SettingsPage(props) {
   const checkUpdate = React.useCallback(async () => {
     setUpdateState((s) => ({ ...s, checking: true, error: '' }))
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/update`)
+      const res = await request(`${ROUTE_PREFIX}/update`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json().catch(() => ({}))
+      if (data.latestCheckFailed) throw new Error(t('update.check_failed'))
       setUpdateState((s) => ({
         ...s,
         checking: false,
@@ -128,11 +136,12 @@ function SettingsPage(props) {
         latestVersion: data.latestVersion || '',
         updateAvailable: !!data.updateAvailable,
         canAutoUpdate: data.canAutoUpdate !== false,
+        disabled: data.updatesEnabled === false,
       }))
-    } catch (_) {
-      setUpdateState((s) => ({ ...s, checking: false }))
+    } catch (error) {
+      setUpdateState((s) => ({ ...s, checking: false, error: String(error.message || error) }))
     }
-  }, [])
+  }, [request])
 
   React.useEffect(() => {
     checkUpdate()
@@ -142,7 +151,7 @@ function SettingsPage(props) {
     if (updateState.updating) return
     setUpdateState((s) => ({ ...s, updating: true, error: '', notice: '' }))
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/update`, {
+      const res = await request(`${ROUTE_PREFIX}/update`, {
         method: 'POST',
         headers: { 'x-dsh-plugin-update': '1' },
       })
@@ -158,7 +167,8 @@ function SettingsPage(props) {
         currentVersion: newVer,
         notice: t('update.done', { version: newVer }),
       }))
-      setTimeout(() => checkUpdate(), 2000)
+      clearTimeout(updateTimerRef.current)
+      updateTimerRef.current = setTimeout(() => checkUpdate(), 2000)
     } catch (err) {
       setUpdateState((s) => ({
         ...s,
@@ -178,7 +188,7 @@ function SettingsPage(props) {
     setErr('')
     setMsg('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/config`, {
+      const res = await request(`${ROUTE_PREFIX}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ baseUrl: next }),
@@ -204,7 +214,7 @@ function SettingsPage(props) {
     setErr('')
     setMsg('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/save-key`, {
+      const res = await request(`${ROUTE_PREFIX}/save-key`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: keyVal, apiKeyEnv: draft?.apiKeyEnv }),
@@ -229,13 +239,13 @@ function SettingsPage(props) {
     setErr('')
     setMsg('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/usage`)
+      const res = await request(`${ROUTE_PREFIX}/usage`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setStatus((prev) => (prev ? { ...prev, usage: data } : prev))
       const present = (status?.accounts || []).filter((account) => account.present).length
       if (present > 1) {
-        const extra = await fetch(`${ROUTE_PREFIX}/usage/accounts?fresh=1`, { cache: 'no-store' })
+        const extra = await request(`${ROUTE_PREFIX}/usage/accounts?fresh=1`, { cache: 'no-store' })
         const rows = await extra.json().catch(() => ({}))
         if (!extra.ok || !rows.ok) throw new Error(rows.error || `HTTP ${extra.status}`)
         setAccountUsage(Array.isArray(rows.accounts) ? rows.accounts : [])
@@ -253,7 +263,7 @@ function SettingsPage(props) {
     setErr('')
     setMsg('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/models/sync`, { method: 'POST' })
+      const res = await request(`${ROUTE_PREFIX}/models/sync`, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setMsg(t('models.synced_msg', { total: data.totalModelsCount, discovered: data.discoveredCount }))
@@ -270,7 +280,7 @@ function SettingsPage(props) {
     setErr('')
     setMsg('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/register`, { method: 'POST' })
+      const res = await request(`${ROUTE_PREFIX}/register`, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
       const count = status?.availableModels?.filter((m) => !(draft?.disabledModels || []).includes(m.id)).length || 0
@@ -288,7 +298,7 @@ function SettingsPage(props) {
     setErr('')
     setMsg('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/unregister`, { method: 'POST' })
+      const res = await request(`${ROUTE_PREFIX}/unregister`, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setMsg(t('diag.unregistered_msg'))
@@ -305,7 +315,7 @@ function SettingsPage(props) {
     setErr('')
     setSmokeResult(null)
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/smoke`, {
+      const res = await request(`${ROUTE_PREFIX}/smoke`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: smokeModel }),
@@ -324,7 +334,7 @@ function SettingsPage(props) {
     setBusy('fast-login')
     setErr('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/auth/begin`, { method: 'POST' })
+      const res = await request(`${ROUTE_PREFIX}/auth/begin`, { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
       if (data.authUrl) {
@@ -352,7 +362,7 @@ function SettingsPage(props) {
   async function postAccount(path, body, busyName) {
     setBusy(busyName)
     try {
-      const res = await fetch(`${ROUTE_PREFIX}${path}`, {
+      const res = await request(`${ROUTE_PREFIX}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -385,7 +395,7 @@ function SettingsPage(props) {
     setBusy('pin-account')
     setErr('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/accounts/active`, {
+      const res = await request(`${ROUTE_PREFIX}/accounts/active`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ account: accountEnv }),
@@ -400,12 +410,11 @@ function SettingsPage(props) {
     }
   }
 
-  const debounceTimerRef = typeof React.useRef === 'function' ? React.useRef(null) : { current: null }
   function debounceSaveDisabledModels(nextDisabled) {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`${ROUTE_PREFIX}/models/toggle`, {
+        const res = await request(`${ROUTE_PREFIX}/models/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ selectionKind: 'all-except-disabled', disabledModels: nextDisabled }),
@@ -420,11 +429,12 @@ function SettingsPage(props) {
   }
 
   async function saveModelPatch(body) {
+    clearTimeout(debounceTimerRef.current)
     const local = !!(body && body.modelOverride)
     setBusy('model-edit')
     if (!local) setErr('')
     try {
-      const res = await fetch(`${ROUTE_PREFIX}/models/toggle`, {
+      const res = await request(`${ROUTE_PREFIX}/models/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -520,6 +530,7 @@ function SettingsPage(props) {
   const keyPresent = !!status.key?.present
   const isRegistered = !!status.isRegistered
   const modelsList = (status.availableModels || []).filter((model) => {
+    if (modelsSearch && !`${model.id} ${model.name}`.toLowerCase().includes(modelsSearch.toLowerCase())) return false
     if (modelsFilter === 'vision') return model.input?.includes('image') || model.vendorInput?.includes('image')
     if (modelsFilter === 'coding') return model.category === 'coding'
     if (modelsFilter === 'recommended') return model.recommended
@@ -567,6 +578,7 @@ function SettingsPage(props) {
       handleSaveKey,
       handleSaveBaseUrl,
       handleFastLogin,
+      onImported: load,
       t,
     }),
 
@@ -585,6 +597,9 @@ function SettingsPage(props) {
       keyPresent,
       busy,
       modelsFilter,
+      modelsSearch,
+      setModelsSearch,
+      config: draft,
       providerReasoning: draft.providerReasoning || '',
       handleSyncPlanModels,
       handleSetModelsFilter,
@@ -606,7 +621,7 @@ function SettingsPage(props) {
       onSmokeModel: (id) => {
         setSmokeModel(id)
         setDraft((prev) => ({ ...(prev || {}), defaultModel: id }))
-        fetch(`${ROUTE_PREFIX}/models/toggle`, {
+        request(`${ROUTE_PREFIX}/models/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ defaultModel: id }),

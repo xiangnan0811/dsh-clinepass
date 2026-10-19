@@ -50,6 +50,14 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   rate limit.
 - Registers the selected models into DSH. The output cap is not sent as
   `max_tokens`. The request budget is. The default budget is 65536.
+- Adds selection shortcuts, search, optional verified-plan filtering, batch
+  defaults and custom model forms. An explicit empty selection registers none.
+  Individual overrides take precedence over batch defaults. Restoring model
+  capabilities leaves the request budget unchanged; it has its own reset.
+- Validates an entered key without saving, or scans known Cline CLI, VS Code,
+  Cursor files and Cline environment variables when requested. Discovery shows
+  masked values; five-minute server handles import selected keys into the account
+  pool. Encrypted editor secrets may not be discoverable.
 - Lets you pick the smoke-test model. Muse Spark uses
   `reasoning_effort: low` and a 1024-token cap so the short reply is not
   swallowed by reasoning.
@@ -95,20 +103,28 @@ dsh-clinebot:
 | `apiKeyEnv` | `CLINEBOT_API_KEY` | Credential name |
 | `defaultModel` | `cline-pass/deepseek-v4.1-flash` | Smoke test and provider default |
 | `selectionKind` | `all-except-disabled` | Empty `disabledModels` registers the catalog |
+| `planFilterEnabled` | `false` | Intersects the saved manual selection with a successfully read plan; missing plan data does not clear the selection |
+| `batchModelDefaults` | inherit | Context, output capability and request budget defaults, below individual model overrides |
 | `timeoutMs` | `15000` | Usage and plan requests |
 | `smokeTimeoutMs` | `25000` | Smoke test |
 
 Checked models are what Settings → Models lists. Per-model overrides for
 context, output cap, request budget, input, and reasoning are edited on the
-card. Empty override fields inherit the catalog.
+card. Empty override fields inherit batch defaults, then the catalog. Native
+Models edits are captured in `hostModelOverrides` and survive hiding models and
+restarts. An explicit edit or restore on this card clears the corresponding
+captured field. Per-model default reasoning effort is still pending the native
+adapter integration in the [sync plan](docs/maintenance/UPSTREAM_SYNC_PLAN.md).
 
 ## Develop
 
 ```sh
+npm run build:client
 npm test
 ```
 
-`npm test` rebuilds `lib/client.js` and runs the suite. `npm pack` builds a
+`npm test` checks that `lib/client.js` matches its source without rewriting it,
+runs the undefined-name check, then the suite. `npm pack` builds a
 local tarball. Install that tarball with `dsh plugin add ./<file>.tgz` when
 you are not installing from GitHub.
 

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+Add verified-plan filtering, visible/plan/empty selection shortcuts, batch model
+defaults, capability-only restoration, custom model management and preservation
+of native Models edits across hidden selections and restarts. A plan response
+without model membership cannot verify an empty plan. Manual sync discards stale
+results after account or configuration changes.
+Missing quota percentages and subscription prices remain unknown; malformed
+quota responses fail instead of appearing as valid zero usage.
+
+Add independent key validation and on-demand local key discovery. Discovery
+returns masked values and expiring handles; account imports keep secrets on the
+server and retain the settings-before-secret ordering.
+
+Client requests now have cancellation and deadlines covering the response body.
+Update-check errors and disabled checks are distinct from being up to date.
+Use current next theme tokens, handle volatile schema values at internal policy
+boundaries, and check static names and generated-bundle drift during tests.
+
 Support DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19) in the host
 dependency ranges. Stop requesting the removed standalone client slots bundle;
 the client continues to inject the host's `slots` service.
