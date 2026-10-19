@@ -2,6 +2,67 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
+## Native credentials, concurrent sessions and narrow configuration (2026-10-19)
+
+Above `1facce0`, acceptance continued on DSH `0.2.1-rc.2` CLI Web with
+project-local home/profile, fake keys and a local mock. Production code is
+unchanged from `423c899`; its 131-test result remains applicable. Fixture G/H
+only inject discovery home/env/expiry and disposal tracing; they are private
+archives, not production features. The final active archive I is an unmodified
+production pack, with no discovery injection or disposal trace.
+
+- The real authenticated discovery/validation/account routes found three fake
+  keys, merging source counts 3/2/1. Every file path stayed under the fixture
+  home. Native outcomes included four found files, invalid JSON, a directory,
+  an oversized file, an unreadable file and 15 missing paths. Full fake keys
+  were absent from the discovery reply. Validation did not save an account;
+  native import and secret deletion succeeded; old scan handles and the
+  fixture's shortened expiry were rejected.
+- Making only the isolated credentials document unreadable caused the real
+  credentials-local writer to fail with EACCES. Watching the profile file
+  observed the new account before that write failed, then rollback removed it.
+  The public plugin configuration and credential document remained identical.
+  Permission 0600 was restored in `finally`; native import/delete passed again.
+- Two independent native conversations entered the proxy concurrently with
+  `activeRequests: 2`, two bindings and round-robin cursor 2. Subsequent calls
+  retained primary/second-account attribution and did not advance that cursor
+  or change the global pin. One conversation's HTTP 429 retried successfully
+  on the third account; cancelling the other closed its upstream stream without
+  interrupting the retry. This produced two logical records, respectively two
+  attempts and a cancelled single attempt. An explicit GLM route chose account
+  three while Flash honored the manual account-two pin. Routing/pin settings
+  and the two-model plan selection were restored afterward.
+- The host's actual component switch disabled ClinePass: its HTTP API became
+  404, the in-flight native probe returned CANCELLED/499, the old loopback port
+  closed and that instance's temporary credential disappeared. Other providers,
+  accounts and settings survived. Re-enabling recreated the proxy, adapter and
+  search registration; the final production archive's native probe succeeded.
+- **Open defect:** disabling did not restore `llm-pi-ai.providers.clinebot`.
+  A fixture-only trace confirmed that the saved native profile was present and
+  enabled, but the restore mutation failed with
+  `HMR transactions cannot be nested`. Native HMR runs teardown within its
+  transaction, and settings/config-editor starts another transaction. Port and
+  credential cleanup still completed in `finally`. This is not a successful
+  provider hand-back or complete lifecycle pass; no private HMR internals,
+  direct profile writes or global-host patches were used to bypass it.
+- At 390px, the independent full configuration window measured 285px content
+  and scroll width. Real UI operations added/deleted an account and its secret,
+  created/deleted a custom model, rejected/recovered an invalid request limit,
+  saved/restored rates, model routes, image limits, batch context and search
+  deadline, toggled search registration, refreshed statistics and ran a native
+  streaming probe. Original account/model/rate/image/route state was preserved;
+  no error remained. Statistics contained 29 measured requests after these calls,
+  including native title-generation calls and probes, not 29 user turns.
+- Chinese/dark full configuration was rendered and inspected at 390px. Its
+  invalid-limit feedback was Chinese and recovered to a valid save. Opening
+  Plugins from that window closed the modal. Chinese/dark update checking showed
+  a localized failure prefix for an unreadable archive, without a current-commit
+  success claim. English/light and Chinese/dark screenshots were inspected;
+  this does not claim every control in every language/theme permutation.
+- Migration/final whole-candidate acceptance, the HMR restoration defect, real
+  search access and Desktop remain open. `command -v dsh-desktop` found no
+  executable on PATH; that alone is not proof that no Desktop installation exists.
+
 ## Native update candidate (2026-10-19)
 
 Above `80c38e0`, P7 adds update target checks and a `plugins.tab` contribution.

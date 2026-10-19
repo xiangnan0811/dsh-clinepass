@@ -178,6 +178,12 @@ Disabling or unloading unregisters the provider and cancels pending searches.
 Isolated next and local mock acceptance have passed; live channel availability
 remains unverified.
 
+On DSH next `0.2.1-rc.2`, actual plugin disable cancels pending calls, closes the
+proxy and removes its temporary credential. Automatic hand-back to the built-in
+model adapter currently fails because the host rejects a settings write during
+teardown. Saved model/account configuration remains available, and re-enabling
+restores calls. This lifecycle defect remains open in the synchronization plan.
+
 Updates run from **Plugins → ClinePass updates**. The settings shortcut opens
 this bundle's detail page; return to the Plugins list to select that tab. GitHub
 targets always use this repository and a checked commit. Local directories,
