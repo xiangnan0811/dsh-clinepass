@@ -54,6 +54,7 @@ function ModelsSection({
       requestOutputBudget: override.requestOutputBudget === 'inherit' ? '' : String(override.requestOutputBudget ?? ''),
       inputMode: override.inputMode || 'inherit',
       reasoningMode: override.reasoningMode || 'inherit',
+      defaultReasoning: override.defaultReasoning || 'inherit',
     })
   }
 
@@ -75,6 +76,7 @@ function ModelsSection({
         requestOutputBudget: restore ? 'inherit' : counts.requestOutputBudget.value,
         inputMode: restore ? 'inherit' : form.inputMode,
         reasoningMode: restore ? 'inherit' : form.reasoningMode,
+        defaultReasoning: restore ? 'inherit' : form.reasoningMode === 'off' ? undefined : form.defaultReasoning,
       },
     })
     if (result) setNotice({ id: model.id, ok: result.ok, text: result.message })
@@ -166,6 +168,9 @@ function ModelsSection({
               ['inherit', 'text', 'text+image'].map((mode) => React.createElement('option', { key: mode, value: mode }, optionLabel(mode, t))))),
             React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.th_reasoning')), React.createElement('select', { className: 'cb-input', value: form.reasoningMode, onChange: (event) => setForm({ ...form, reasoningMode: event.target.value }) },
               (model.vendorReasoningAvailable ? ['inherit', 'off', 'vendor'] : ['inherit', 'off']).map((mode) => React.createElement('option', { key: mode, value: mode }, optionLabel(mode, t))))),
+            React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.default_effort')), React.createElement('select', { className: 'cb-input', value: form.defaultReasoning,
+              disabled: form.reasoningMode === 'off', onChange: (event) => setForm({ ...form, defaultReasoning: event.target.value }) },
+              [...new Set(['inherit', ...(model.reasoningLevelIds || []), ...(model.reasoningEfforts && model.compat?.thinkingFormat === 'deepseek' ? ['off'] : []), form.defaultReasoning])].map((value) => React.createElement('option', { key: value, value }, value === 'inherit' ? t('models.provider_default') : value)))),
             notice && notice.id === model.id ? React.createElement('div', { className: notice.ok ? 'cb-alert-ok cb-editor-note' : 'cb-alert-bad cb-editor-note' }, notice.text) : null,
             React.createElement('div', { className: 'cb-editor-actions' },
               React.createElement('button', {

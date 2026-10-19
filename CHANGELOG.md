@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+Add an authenticated loopback proxy with session binding, model/account routes,
+measured-quota and round-robin strategies, cooldown recovery, bounded requests
+and retries only before model output. Disabling it restores direct transport
+and original native retry/timeout controls. Proxy mode is off by default.
+
+Apply per-model effort defaults through a ClinePass-only native adapter before
+request configuration freezes. Keep explicit caller choices and native model
+parameter edits. Optional historical image offload uses the host's logged
+decisions and replay, retaining original attachments. Image limits and the full
+JSON request budget remain separate. This candidate requires next DSH peers
+(`^0.2.1-rc.2`); old-host validation remains historical.
+
 Add verified-plan filtering, visible/plan/empty selection shortcuts, batch model
 defaults, capability-only restoration, custom model management and preservation
 of native Models edits across hidden selections and restarts. A plan response
@@ -19,7 +31,7 @@ Update-check errors and disabled checks are distinct from being up to date.
 Use current next theme tokens, handle volatile schema values at internal policy
 boundaries, and check static names and generated-bundle drift during tests.
 
-Support DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19) in the host
+Target DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19) in the host
 dependency ranges. Stop requesting the removed standalone client slots bundle;
 the client continues to inject the host's `slots` service.
 

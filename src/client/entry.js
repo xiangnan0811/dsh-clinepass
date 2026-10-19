@@ -23,6 +23,7 @@ function refreshScope(ctx) {
 }
 
 function apply(ctx) {
+  ensureCss()
   const bound = bindScope(ctx)
   const card = (props) => React.createElement(
     ErrorBoundary,
@@ -92,6 +93,10 @@ function apply(ctx) {
           locale: NS,
         },
         surface,
+      )))
+      listen(() => ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(
+        { name: 'settings.models.provider-card', key: NS, locale: NS },
+        (props) => props?.provider?.provider === 'clinebot' ? React.createElement(ErrorBoundary, null, React.createElement(NativeModelEditor, props)) : null,
       )))
       return () => {
         for (const off of offs) {

@@ -204,6 +204,22 @@ function SettingsPage(props) {
     }
   }
 
+  async function saveSettings(patch) {
+    setBusy('save-settings')
+    setErr('')
+    try {
+      const response = await request(`${ROUTE_PREFIX}/config`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`)
+      await load()
+      return { ok: true, message: data.warning || t('models.saved') }
+    } catch (error) {
+      const message = String(error.message || error)
+      setErr(message)
+      return { ok: false, message }
+    } finally { setBusy('') }
+  }
+
   async function handleSaveKey() {
     const keyVal = String(apiKeyInput || '').trim()
     if (!keyVal) {
@@ -584,6 +600,7 @@ function SettingsPage(props) {
 
     // Accounts Pool Card
     React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }),
+    React.createElement(ProxySection, { status, draft, busy, saveSettings, reload: load, t }),
 
     // Quota Warning & Dashboard Card
     React.createElement(QuotaSection, { keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t }),

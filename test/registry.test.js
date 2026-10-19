@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import test from 'node:test'
-import { Config } from '../lib/config.js'
+import { parseConfig as Config } from '../lib/config.js'
 import {
   getAllModels,
   mergeDiscovered,

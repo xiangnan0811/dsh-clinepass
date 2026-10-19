@@ -11,6 +11,7 @@ const nodeModules = dirname(dirname(require.resolve('@deepseek-ai/schemastery/pa
 const files = [
   'test/access.test.js',
   'test/native-host.test.js',
+  'test/native-adapter.test.js',
   'test/registry.test.js',
   'test/provider-sync.test.js',
   'test/settings-guard.test.js',
@@ -19,6 +20,9 @@ const files = [
   'test/client-request.test.js',
   'test/model-management.test.js',
   'test/key-discovery.test.js',
+  'test/session-router.test.js',
+  'test/proxy.test.js',
+  'test/proxy-runtime.test.js',
   'test/token-count.test.js',
   'test/account-pool.test.js',
   'test/stream-failover.test.js',

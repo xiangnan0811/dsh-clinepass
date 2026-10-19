@@ -2,12 +2,56 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
-## Sync implementation in progress
+## Native adapter and proxy candidate (2026-10-19)
+
+The candidate above `145a425` implements per-model effort defaults, the native
+adapter, loopback proxy, account/session routing and historical image policy.
+The complete [sync plan](UPSTREAM_SYNC_PLAN.md) remains open, including durable
+analytics, additional usage surfaces, search, native updates and final acceptance.
+
+- `npm test`: 91 passed on the next development dependencies. The bundle is
+  137447 bytes, checked without rewriting. All 22 HTTP routes are covered by
+  the unauthenticated boundary check. Proxy tests cover split UTF-8/SSE, embedded
+  errors, 401/402/429/5xx, empty/truncated output, heartbeat-only first-output
+  timeouts, stalled JSON bodies, cancellation and shutdown, body byte budgets,
+  retry deduplication and routing precedence. Native tests use the installed
+  `0.2.1-rc.2` adapter, registry and session replay APIs.
+- Packed installation into the project-local isolated CLI Web profile booted
+  the candidate with fake credentials and a local HTTP mock. Actual conversation
+  requests passed through the proxy with a default High effort and preserved
+  request budget of 2048. Session metadata reached only the proxy. An auxiliary
+  title request used its explicit Off choice.
+- Chromium saved 3072 through the new provider-card parameter editor in Settings
+  → Models. The value survived restart and switching the proxy off through the
+  ClineBot settings UI. The proxy listener stopped and a direct native conversation
+  completed with budget 3072 and High effort.
+- A synthetic PNG was uploaded through the native composer. Its first request
+  contained one image. Enabling historical offload with zero retained historical
+  images caused the native host to append `image/offload` and retry successfully:
+  the mock received zero images and one offloaded placeholder. A host restart and
+  subsequent direct request preserved that projection and the original attachment.
+  Detached log replay and immutable original-image references also have a native
+  regression test.
+- Acceptance exposed two repaired issues: old nested `dsh-llm@0.1.5-rc.3` dropped
+  `offloadImages`, and reparsing marked/frozen Schemastery dictionaries broke
+  provider preparation and later configuration edits. Next peer declarations,
+  an image-offload capability error and detached parsing address these cases.
+  Reinstalling the isolated profile dependencies removed the stale old copy.
+- Explicit adapter disposal and proxy cancellation/credential restoration pass
+  native/unit tests. Full-host SIGTERM did not establish awaited cleanup;
+  actual plugin disable/re-enable remains an integration acceptance item.
+- Screenshots of the native model editor and proxy settings were inspected at
+  1280px in the dark theme. New mobile and light-theme acceptance, Desktop,
+  real ClinePass channel calls, key discovery/import through native services and
+  final whole-plan packed acceptance remain open. No interactive profile or
+  global DSH installation was modified, and no real external key was used.
+
+## Previous model and credential candidate
 
 P1 and the model/credential management portion of P2 in the
 [sync plan](UPSTREAM_SYNC_PLAN.md) were implemented on 2026-10-19. The complete
-plan remains open: per-model effort defaults, proxy/routing, durable analytics,
-new usage surfaces, search, updates and final platform acceptance are not done.
+plan remained open at that checkpoint; the native/proxy candidate above records
+subsequent work.
 
 - `npm test`: 71 passed, including the installed next Schemastery (volatile
   configuration values), installed adapter wire capture, complete plugin-route

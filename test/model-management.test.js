@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import http from 'node:http'
-import { Config, publicConfig } from '../lib/config.js'
+import { parseConfig as Config, publicConfig } from '../lib/config.js'
 import { getAllModels, selectedIds, clearPlanDiscovery, migrateConfig } from '../lib/models.js'
 import { applyModelManagement } from '../lib/model-management.js'
 import { buildProviderPayload } from '../lib/provider-payload.js'
@@ -11,6 +11,17 @@ import { fetchUsageLimits, catalogChange, catalogIdentity } from '../lib/cline-c
 import { preserveHostModelEdits, retainedHostFields, hostFieldsToReset, captureHostEdits, applyStoredHostEdits } from '../lib/host-model-edits.js'
 
 const id = 'cline-pass/deepseek-v4.1-flash'
+
+test('parsed native profiles and captured model values can be parsed again without mutating the source', () => {
+  const original = Config({
+    nativeProvider: buildProviderPayload({ baseUrl: 'https://example.test/v1', apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload,
+    hostModelOverrides: [{ id, values: { maxTokens: 3072 } }], proxyEnabled: true,
+  })
+  const updated = Config({ ...original, proxyEnabled: false })
+  assert.equal(updated.proxyEnabled, false)
+  assert.equal(updated.hostModelOverrides[0].values.maxTokens, 3072)
+  assert.equal(original.proxyEnabled, true)
+})
 
 test('plan filtering intersects selections only after success and preserves explicit none', () => {
   const cfg = Config({ planFilterEnabled: true, selectionKind: 'explicit', explicitModels: [id] })

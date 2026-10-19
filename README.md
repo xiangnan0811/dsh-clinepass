@@ -23,8 +23,8 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 Restart `dsh`. **ClineBot** is in the settings sidebar. The sidebar **Plugins** page also opens it from the `dsh-clinebot` row inside `dsh-clinepass`. Settings → Built-in plugins is a read-only inventory and no longer hosts this card.
 
 `npm publish` is not required for the DSH plugin market in the sidebar
-(`dsh-market`). That market installs with `dsh plugin add github:owner/repo`.
-Publishing to npm is only needed for `dsh plugin add <npm-name>`.
+(`dsh-market`). That market installs with `dsh plugin --profile web add github:owner/repo`.
+Publishing to npm is only needed for `dsh plugin --profile web add <npm-name>`.
 
 This repository is not a GitHub fork. The market lists it after the topic
 `dsh-plugin` is on the About page and `cordis.patch.yml` is in the root.
@@ -77,7 +77,7 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass
 id. The default smoke model is that id.
 
-Tested hosts: DeepSeek Harness `0.1.7-rc.2` and `0.2.1-rc.2` (`next` on 2026-10-19). The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+This candidate targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
 require DSH authentication, including reads and update checks. Open the URL
@@ -105,6 +105,11 @@ dsh-clinebot:
 | `selectionKind` | `all-except-disabled` | Empty `disabledModels` registers the catalog |
 | `planFilterEnabled` | `false` | Intersects the saved manual selection with a successfully read plan; missing plan data does not clear the selection |
 | `batchModelDefaults` | inherit | Context, output capability and request budget defaults, below individual model overrides |
+| `proxyEnabled` | `false` | Authenticated loopback proxy with account retries before the first model output |
+| `accountMode` | `least-used` | Lowest measured quota first, or `round-robin`; unknown quota stays unknown |
+| `modelRoutes` | `[]` | Explicit model/account routes, ahead of manual pin, session binding and strategy |
+| `historyImageOffload` | `false` | Ask the native host to log and replay historical image offload decisions |
+| `historyImagesToKeep` | `2` | Historical retained images; the latest user/tool input is retained |
 | `timeoutMs` | `15000` | Usage and plan requests |
 | `smokeTimeoutMs` | `25000` | Smoke test |
 
@@ -113,8 +118,21 @@ context, output cap, request budget, input, and reasoning are edited on the
 card. Empty override fields inherit batch defaults, then the catalog. Native
 Models edits are captured in `hostModelOverrides` and survive hiding models and
 restarts. An explicit edit or restore on this card clears the corresponding
-captured field. Per-model default reasoning effort is still pending the native
-adapter integration in the [sync plan](docs/maintenance/UPSTREAM_SYNC_PLAN.md).
+captured field. Per-model default effort is applied before the native request
+freezes; explicit caller choices, including Off, take precedence. Activating
+these defaults, proxy mode or historical image offload transfers only `clinebot`
+to the ClinePass native adapter. Its model parameters remain editable in Settings
+→ Models. The adapter stays registered when proxy mode returns to direct mode.
+
+Proxy credentials are ephemeral references in DSH credentials. Disabling proxy
+mode restores the upstream address, account reference and original retry/timeout
+controls. Proxy requests use their own retry policy; direct requests retain the
+existing next-turn rotation. Connect, first-output and JSON-body deadlines default
+to 15 seconds, stream idle to 30 seconds, total to 300 seconds, and the complete
+request body to 32 MiB. Edit these under Proxy and account routing. Native image
+size limits are separate; historical offload requires the host image-offload
+plugin and keeps original session attachments. See the
+[sync plan](docs/maintenance/UPSTREAM_SYNC_PLAN.md) for remaining work.
 
 ## Develop
 
@@ -125,7 +143,7 @@ npm test
 
 `npm test` checks that `lib/client.js` matches its source without rewriting it,
 runs the undefined-name check, then the suite. `npm pack` builds a
-local tarball. Install that tarball with `dsh plugin add ./<file>.tgz` when
+local tarball. Install that tarball with `dsh plugin --profile web add ./<file>.tgz` when
 you are not installing from GitHub.
 
 ## License

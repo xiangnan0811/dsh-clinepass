@@ -22,7 +22,7 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 重启 `dsh`。设置侧栏里有 **ClineBot**。侧边栏的**插件**页打开 `dsh-clinepass` 后，`dsh-clinebot` 这一行也可以进入配置。设置里的**内置插件**只读，不再挂第三方插件的设置。
 
 侧边栏里的插件市场（`dsh-market`）不要求先发 npm。它的一键安装用的是
-`dsh plugin add github:所有者/仓库`。只有想用 `dsh plugin add <npm 包名>` 时才需要 `npm publish`。
+`dsh plugin --profile web add github:所有者/仓库`。只有想用 `dsh plugin --profile web add <npm 包名>` 时才需要 `npm publish`。
 
 这个仓库不是 GitHub fork。About 页加上 topic `dsh-plugin`，并且根目录有
 `cordis.patch.yml`，市场才会收录。收录大约每天 06:00 跑，还会再确认这是 DSH 插件。
@@ -43,7 +43,7 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 
 `api.cline.bot` 的 `GET /api/v1/models` 返回 404。有密钥时，发现走 `GET /users/me/plan`。`cline-pass/deepseek-v4.1-flash` 是普通 ClinePass 模型，也是默认冒烟模型。
 
-已核对的宿主是 DeepSeek Harness `0.1.7-rc.2` 和 `0.2.1-rc.2`（2026-10-19 的 `next`）。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
+当前候选版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
 
 宿主提供 `connection.requestRejection` 时，全部 `/dsh-clinebot/*` 接口都要求 DSH 登录认证，包括读取和更新检查。请通过 `dsh web` 打印的地址登录。未认证返回 401，宿主或来源校验失败返回 403；设置写入仍保留来源校验。
 
@@ -71,7 +71,19 @@ dsh-clinebot:
 | `timeoutMs` | `15000` | 用量和订阅请求 |
 | `smokeTimeoutMs` | `25000` | 冒烟测试 |
 
-设置 → 模型里列出的是已勾选的模型。上下文、最大输出、请求预算、输入和思考可以在卡片里按模型覆盖。覆盖留空先继承批量默认值，再继承目录。原生模型页的手改值保存在 `hostModelOverrides`，隐藏模型和重启后继续保留；在本卡片显式修改或恢复对应字段会清除该手改值。逐模型默认思考档仍待[同步计划](docs/maintenance/UPSTREAM_SYNC_PLAN.md)中的原生适配器接入。
+设置 → 模型里列出的是已勾选的模型。上下文、最大输出、请求预算、输入和思考可以在卡片里按模型覆盖。覆盖留空先继承批量默认值，再继承目录。原生模型页的手改值保存在 `hostModelOverrides`，隐藏模型和重启后继续保留；在本卡片显式修改或恢复对应字段会清除该手改值。逐模型默认思考档在原生请求冻结前生效，调用方显式选档和关闭优先。启用默认档、代理或历史图片卸载后，只有 `clinebot` 转交给 ClinePass 原生适配器；仍可在“设置 → 模型”中编辑参数。代理切回直连时保留适配器注册。
+
+“代理与账户路由”提供以下设置：
+
+| 字段 | 默认值 | 行为 |
+| --- | --- | --- |
+| `proxyEnabled` | `false` | 带独立认证的 loopback 代理，只在首个模型输出前尝试其他账户 |
+| `accountMode` | `least-used` | 优先最低已测配额；也可选择 `round-robin`，未知用量保持未知 |
+| `modelRoutes` | `[]` | 模型指定账户优先，其后为手动钉选、会话绑定和自动策略 |
+| `historyImageOffload` | `false` | 通过宿主日志记录和回放历史图片卸载，需要启用宿主图片卸载插件 |
+| `historyImagesToKeep` | `2` | 保留的历史图片数；最新用户／工具输入仍然保留 |
+
+代理凭据保存在 DSH 凭据服务中，仅引用名进入配置。关闭代理恢复真实上游地址、账户和原有重试／超时参数；直连保留原有后续请求轮换。连接、首输出和 JSON 响应体期限默认各 15 秒，流空闲期限 30 秒，总期限 300 秒，完整请求体上限 32 MiB。图片尺寸预算独立配置；历史卸载保留原始会话附件。[同步计划](docs/maintenance/UPSTREAM_SYNC_PLAN.md)列出剩余功能和验收。
 
 ## 开发
 
@@ -80,7 +92,7 @@ npm run build:client
 npm test
 ```
 
-`npm test` 不改写产物，会检查 `lib/client.js` 与源文件一致、执行未定义变量检查，再运行测试。`npm pack` 打本地压缩包。不从 GitHub 安装时，用 `dsh plugin add ./<文件>.tgz`。
+`npm test` 不改写产物，会检查 `lib/client.js` 与源文件一致、执行未定义变量检查，再运行测试。`npm pack` 打本地压缩包。不从 GitHub 安装时，用 `dsh plugin --profile web add ./<文件>.tgz`。
 
 ## 许可证
 
