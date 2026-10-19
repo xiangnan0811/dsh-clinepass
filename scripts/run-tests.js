@@ -11,6 +11,7 @@ const nodeModules = dirname(dirname(require.resolve('@deepseek-ai/schemastery/pa
 const files = [
   'test/access.test.js',
   'test/native-host.test.js',
+  'test/native-lifecycle.test.js',
   'test/native-adapter.test.js',
   'test/registry.test.js',
   'test/provider-sync.test.js',

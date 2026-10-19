@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+Fix automatic adapter and credential synchronization after native hot updates.
+Disabling the plugin now restores its saved built-in provider through the host's
+configuration queue after teardown, preserving native model controls. Guard
+queued writes against retired instances and copy raw profile data across schema
+boundaries. Cancel pending calls and late proxy startup on unload, skip HTTP
+handlers whose clients disconnected during initialization, and expose automatic
+synchronization failures in diagnostics.
+
 Preserve legacy model selections before host schema defaults are applied, and map
 saved native model IDs before importing their edited request budgets. Hiding all
 models now retains provider headers and native controls for later registration

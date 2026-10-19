@@ -1,6 +1,75 @@
 # Validation record
 
-Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
+Original 0.5.7 baseline (historical): `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
+
+## Native lifecycle repairs (2026-10-19)
+
+Above `dcd9f25`, the candidate fixes both HMR defects recorded in the older
+sections below. Those sections are historical snapshots, including their open
+defect lists; current status is recorded here and in the synchronization plan.
+
+The plugin retains a clean AsyncResource execution context per host root across
+package replacement. The public HMR queue provides the transaction barrier;
+configEditor continues to own locking, validation and atomic edits. Teardown
+does not await a write queued behind its own transaction. At the actual edit,
+retired owners cannot write and deferred restoration cannot overwrite a newer
+instance or an existing stock provider. Raw cloned data crosses the plugin and
+native schemas to avoid carrying Schemastery dictionary metadata between them.
+First live installation can bootstrap from an admitted HTTP callback outside
+HMR; admitted requests await initialization. Disconnected requests skip their
+handlers, automatic sync failures reach diagnostics, and late proxy startup is
+closed if teardown has already begun. No private HMR fields or second file lock
+are used.
+
+`npm test` passed 140 tests, including seven lifecycle tests with a native-style
+AsyncLocalStorage transaction queue, the installed native provider schema,
+actual HTTP disconnect, delayed credential writes and sync-failure visibility.
+Client remains 187247 bytes. Build consistency, lint and all 26 production route
+authentication checks passed. No dependency, package identity or version change.
+
+Native acceptance used DSH `0.2.1-rc.2`, Node 24.18.0, project-local profiles,
+fake credentials and the local mock. No global install or real channel call:
+
+- A first live install established initialization from an authenticated request.
+  Subsequent ordinary production archives N, O and final P were installed through
+  the actual native Plugins UI. Each called the native model without manual sync
+  or restart; public plugin configuration remained identical. Final P reached
+  41 persisted requests with successful sync status. The trace-only archive M
+  was diagnostic evidence, is superseded, and is not production code.
+- Actual component disable restored the full stock provider. Its canonical hash
+  matched the expected **parsed** profile, accounting for schema-default empty
+  dictionaries. A real native conversation then used the built-in adapter with
+  budget 3072, High effort and the primary account. User credentials and the
+  foreign provider remained unchanged; the old proxy port closed and its
+  temporary credential was removed. Re-enable restored native plugin calls.
+- Rapid Off/On did not let old restoration steal the new route. Disabling during
+  a delayed active native probe returned HTTP 499/CANCELLED, removed HTTP routes
+  and the temporary key, and restored the stock provider. Re-enable called the
+  model successfully. This is actual component acceptance; whole-host SIGTERM
+  still does not establish that root shutdown awaited all asynchronous cleanup.
+- The normal current code repeated the EACCES credential-import case: an owned
+  fake account appeared in the profile before credential writing failed, then
+  rolled back. Public configuration and credential document hashes were
+  unchanged. Permissions were restored in finally; subsequent import, deletion
+  and model call succeeded.
+- Separate tarball-based native profiles repeated the revision-1, legacy ID with
+  host-edited budget, and explicit-empty-selection cases on lifecycle code O.
+  Each passed two boots with stable configuration and one persisted measured
+  request. Budget 2048 remained distinct from requested 4096 and capability
+  96000; unknown custom context stayed unknown. Empty selection stayed empty
+  after a temporary reselect/call/hide cycle. Headers, pin, controls and foreign
+  provider were retained; stale v2 cache was ignored and v3 identity was correct.
+- The missing-key case used final P and two native boots. Its initial failure
+  was correctly recorded as one failed logical request with unknown token usage.
+  Native credential import and model sync recovered, a successful probe added
+  the second request, and both persisted after reboot. An earlier expectation
+  that a missing-key attempt should count as zero requests was a fixture error.
+  These migration profiles extracted the tarball and linked the public native
+  peers; the main-profile hot updates above used the real host installer.
+
+Final whole-plan requirement coverage, real Cline search-channel acceptance and
+Desktop acceptance remain open. CLI Web and mock evidence do not establish those
+platform/channel results. No push, release, tag or publication occurred.
 
 ## Native migration repairs (2026-10-19)
 

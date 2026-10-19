@@ -179,12 +179,11 @@ Isolated next and local mock acceptance have passed; live channel availability
 remains unverified.
 
 On DSH next `0.2.1-rc.2`, actual plugin disable cancels pending calls, closes the
-proxy and removes its temporary credential. Automatic hand-back to the built-in
-model adapter currently fails because the host rejects a settings write during
-teardown. Saved model/account configuration remains available, and re-enabling
-restores calls. A hot update can also leave the old proxy credential reference:
-if calls report `MISSING_CREDENTIAL`, choose Diagnostics → Sync again or restart
-DSH. Both automatic lifecycle paths remain open in the synchronization plan.
+proxy, removes its temporary credential and restores the built-in model adapter.
+Saved model/account configuration remains available. Re-enabling and hot updates
+automatically synchronize the active adapter and credential; settings and
+persisted statistics are retained. These paths have passed isolated CLI Web
+acceptance; Desktop remains unverified.
 
 Updates run from **Plugins → ClinePass updates**. The settings shortcut opens
 this bundle's detail page; return to the Plugins list to select that tab. GitHub
