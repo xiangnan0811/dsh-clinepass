@@ -9,6 +9,8 @@ const dshBin = realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' })
 const require = createRequire(dshBin)
 const nodeModules = dirname(dirname(require.resolve('@deepseek-ai/schemastery/package.json')))
 const files = [
+  'test/access.test.js',
+  'test/native-host.test.js',
   'test/registry.test.js',
   'test/provider-sync.test.js',
   'test/settings-guard.test.js',

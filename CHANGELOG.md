@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+Support DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19) in the host
+dependency ranges. Stop requesting the removed standalone client slots bundle;
+the client continues to inject the host's `slots` service.
+
+All plugin HTTP routes now delegate authentication to the host's
+`connection.requestRejection` when available, including reads and update
+checks. Unauthenticated requests receive 401 and host/origin rejections receive
+403. Settings writes keep their existing origin checks. Older hosts without
+that authentication method keep their previous access behavior.
+
 ## 0.5.7
 
 The add-account label, credential name, and key stay hidden until Add

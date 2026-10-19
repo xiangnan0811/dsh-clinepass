@@ -14,7 +14,7 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-DeepSeek Harness `0.1.7-rc.2` installs plugins with pnpm. A GitHub spec is enough:
+DeepSeek Harness installs plugins with pnpm. A GitHub spec is enough:
 
 ```sh
 dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
@@ -69,7 +69,12 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass
 id. The default smoke model is that id.
 
-Tested host: DeepSeek Harness `0.1.7-rc.2`. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+Tested hosts: DeepSeek Harness `0.1.7-rc.2` and `0.2.1-rc.2` (`next` on 2026-10-19). The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+
+On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
+require DSH authentication, including reads and update checks. Open the URL
+printed by `dsh web` to sign in. Unauthenticated requests return 401; host or
+origin rejection returns 403. Settings writes also retain their origin checks.
 
 ## Configuration
 

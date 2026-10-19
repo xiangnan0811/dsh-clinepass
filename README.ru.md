@@ -14,7 +14,7 @@
 
 ## Установка из репозитория
 
-DeepSeek Harness `0.1.7-rc.2` ставит плагины через pnpm. Достаточно адреса GitHub:
+DeepSeek Harness ставит плагины через pnpm. Достаточно адреса GitHub:
 
 ```sh
 dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
@@ -66,9 +66,15 @@ DSH считает переменную источником только для
 из `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` — обычный id
 ClinePass и модель проверки связи по умолчанию.
 
-Проверенный хост: DeepSeek Harness `0.1.7-rc.2`. Пункт в настройках —
+Проверенные хосты: DeepSeek Harness `0.1.7-rc.2` и `0.2.1-rc.2` (`next` на 2026-10-19). Пункт в настройках —
 `settings.section` `dsh-clinebot`. Та же страница зарегистрирована как
 `plugins.row.config` с ключом `dsh-clinepass#dsh-clinebot`.
+
+Если хост предоставляет `connection.requestRejection`, все маршруты
+`/dsh-clinebot/*`, включая чтение и проверку обновлений, требуют аутентификации
+DSH. Откройте адрес, напечатанный `dsh web`. Без аутентификации ответ — 401,
+при отказе проверки хоста или источника — 403. Запись настроек также сохраняет
+проверку источника.
 
 ## Конфигурация
 

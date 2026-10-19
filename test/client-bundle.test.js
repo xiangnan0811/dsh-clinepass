@@ -10,7 +10,6 @@ test('built client injects configForms and registers the row settings page', () 
   assert.deepEqual(pkg.dsh.client.inject, [
     '@deepseek-ai/dsh-client-locale',
     '@deepseek-ai/dsh-client-ui-settings',
-    '@deepseek-ai/dsh-client-ui-slots',
     '@deepseek-ai/dsh-client-ui-plugin-manager',
   ])
   assert.equal(source.includes("ctx.get('lanSettings')"), false)

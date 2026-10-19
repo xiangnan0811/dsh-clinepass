@@ -56,16 +56,15 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-slots",
         "@deepseek-ai/dsh-client-ui-plugin-manager"
       ]
     }
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-credentials": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-host-webserver": "^0.1.5-rc.2",
-    "@deepseek-ai/dsh-settings": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-credentials": "^0.1.5-rc.2 || ^0.2.1-rc.2",
+    "@deepseek-ai/dsh-host-webserver": "^0.1.5-rc.2 || ^0.2.1-rc.2",
+    "@deepseek-ai/dsh-settings": "^0.1.5-rc.2 || ^0.2.1-rc.2",
     "@deepseek-ai/schemastery": "^3.18.1"
   },
   "homepage": "https://github.com/xiangnan0811/dsh-clinepass#readme",

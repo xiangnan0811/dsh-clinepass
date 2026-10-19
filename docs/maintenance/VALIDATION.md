@@ -4,6 +4,47 @@ Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, a
 
 ## Current host
 
+Unreleased candidate above `dsh-clinepass@0.5.7`, checked on 2026-10-19 with
+DeepSeek Harness `0.2.1-rc.2` (the npm `next` tag on that date). Upstream comparison:
+[`4390f50`](https://github.com/GooDAnDReaDY/dsh-clinebot/commit/4390f50a0900465f3c79aa07e1e648d64a7d18be),
+upstream version `0.5.31`. This candidate selectively adopts the host authentication
+boundary, keeping this repository's direct provider, model capability/request-budget
+split, account isolation, and disabled automatic updater.
+
+- The unmodified manifest was rejected by the next installer's compatibility gate
+  because its DSH peers only admitted `0.1.x`. The candidate adds
+  `^0.2.1-rc.2` alongside the existing range and removes the request for the
+  standalone client slots bundle, absent from this host. The client still consumes
+  the native `slots`, `configForms`, and `locale` services.
+- `npm test`: 57 passed. The rebuilt client is 99353 bytes. Added route-boundary
+  tests cover all 16 HTTP routes, authentication errors, admitted writes, CSRF,
+  and the legacy access behavior when no host authentication method exists.
+  A test using the installed DSH adapter lists all 16 models and sends a real
+  streaming HTTP request to a local mock with a fake credential. The captured
+  body has `max_tokens: 65536`, `reasoning_effort: high`, and
+  `thinking: { type: 'enabled' }`; it finishes without an adapter error.
+- A project-local isolated `DSH_HOME` booted the web profile at
+  `127.0.0.1:35239`. Installation from the checkout and from its packed tgz both
+  succeeded without a compatibility exemption. pnpm's standalone peer check
+  reports the host-provided peers as missing from the profile dependency tree;
+  the DSH runtime resolves them and successfully boots the packed plugin.
+- Anonymous requests to status, config, usage, account usage, auth status, and
+  update checks returned 401, as did an anonymous config write. Chromium loaded
+  the authenticated UI, opened ClineBot from Settings and from the installed
+  plugin's Configure control, and displayed the card without an error. The
+  desktop page was inspected at 1280 x 900; no new mobile layout pass was made.
+- Saving a request-budget override of 4096 through the form succeeded. With a
+  loopback mock API and fake keys, saving the primary credential, adding a second
+  account, and switching to it returned 200. Restarting DSH retained the override,
+  both credentials, the selected account, and the registered provider. Replacing
+  the active fake credential also succeeded after installing the packed plugin.
+- `npm pack` included 47 files and no scratch, credentials, environment files, or
+  review prompts. No live ClinePass credential or model request was used. The
+  interactive DSH home and global DSH installation were not changed. The old
+  `0.1.7-rc.2` acceptance below is historical, not a rerun of that host.
+
+## Previous host
+
 DeepSeek Harness `0.1.7-rc.2` does not provide `settingsScope`. A client that injects it stays pending, and the web boot screen reports `dsh-clinepass: pending (waiting for service: settingsScope)`. From 0.5.1 the client injects `configForms`, `slots`, and `locale`. Settings → 内置插件 is a read-only inventory. The page is a `settings.section` named `dsh-clinebot`, and the same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`. The 0.1.5-rc.2 notes below stay as the record of that host. An isolated `DSH_HOME` on 0.1.7-rc.2 booted past the plugin screen, showed ClineBot in the settings sidebar, opened the same form from the sidebar Plugins row, and accepted a settings write. The interactive `~/.dsh` profile was not changed.
 
 | Item | Value |
