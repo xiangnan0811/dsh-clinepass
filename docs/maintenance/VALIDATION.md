@@ -2,6 +2,39 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
+## Native web search candidate (2026-10-19)
+
+Above `aefdfd1`, P6 implements the opt-in `clinebot` search provider using the
+current next `WebRuntime`. The request/response shape follows the fixed upstream
+`4390f50` adapter (`POST /alpha/web-search`, `query`/`numResults`, `results[]`);
+that source is interface evidence, not proof that the live channel is available.
+
+- `npm test`: 120 passed, client 181033 bytes. Tests use the installed native
+  web registry and a local HTTP server to cover opt-in, selection preservation,
+  re-registration/disposal, result bounds and metadata, active credentials,
+  empty results, 401/402/429/500, invalid JSON/shape/URLs, embedded errors, missing
+  credentials, network errors, body deadlines, caller/disable/shutdown cancellation.
+- Full-plugin HTTP configuration saves exposed a volatile-event ordering issue:
+  the old config was read before the local saved snapshot changed. Capability
+  synchronization now runs in the same queue as provider synchronization, reading
+  current settings. A full-plugin native-context regression covers repeated saves.
+- A packed candidate installed into the isolated DSH `0.2.1-rc.2` CLI Web profile.
+  The browser toggle registered, unregistered and re-registered search; startup
+  with search enabled also registered it. Only the fixture's host search selection
+  was explicitly pinned to `clinebot`; the plugin never writes that choice.
+  At 390px, the new search controls were readable with content/scroll width both
+  285px. Saving a 12000 ms deadline through the real input persisted it; restoring
+  15000 ms preserved registration. Full bilingual/theme acceptance stays in P8.
+- A mock model emitted a real native `web_search` call. The host requested eight
+  results, the ClinePass provider returned a real fixture URL/title/snippet, and
+  the host delivered that source back in the model's tool result. Switching the
+  fixture to account two caused the next search to use account two. Mock HTTP 429
+  appeared in the native tool result as HTTP 429, without a fabricated
+  `No results found.` success. The search does not itself rotate the global pin.
+- This verifies the actual plugin, credential resolution and host tool chain with
+  fake keys/local responses. Real ClinePass search access, external channel shape
+  and Desktop remain unverified. P7 updates and P8 acceptance stay open.
+
 ## Usage surfaces and diagnostics candidate (2026-10-19)
 
 Above `0b40f8f`, the P5 implementation adds sidebar quotas, a native detail modal,
@@ -35,10 +68,15 @@ is a committed implementation checkpoint; remaining acceptance in the
   reset text remained readable, missing weekly/monthly data stayed unknown.
   Earlier desktop/native-modal checks do not replace the remaining complete
   light/dark, compact-sidebar, display-switch and error/recovery acceptance matrix.
-- Remaining native checks include delayed-probe cancellation and recovery,
-  quota failure/past-reset recovery, full bilingual/keyboard/mobile paths and
-  P2/P3 lifecycle/concurrency/import scenarios. Desktop and real channel calls
-  remain unexecuted. No interactive profile or global installation was modified.
+- Subsequent native checks on the same P5 code verified delayed-probe cancellation
+  reaches the upstream connection, leaves proxy activeRequests at zero and recovers
+  to success. A past reset shows resetting; HTTP 503 shows an explicit quota error
+  in the modal/sidebar, then refresh recovers. Compact sidebar uses its labelled
+  ring, and both displays toggle off/on; hiding sidebar quota keeps the open modal
+  available for re-enabling it. Unit tests cover subscription/timer release.
+- Remaining native checks include full bilingual/keyboard/mobile paths and P2/P3
+  lifecycle/concurrency/import scenarios. Desktop and real channel calls remain
+  unexecuted. No interactive profile or global installation was modified.
 
 ## Persistent statistics candidate (2026-10-19)
 

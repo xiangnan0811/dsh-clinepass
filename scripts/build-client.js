@@ -30,6 +30,7 @@ const files = [
   'usage-surfaces.js',
   'components/display-settings.js',
   'components/model-probe.js',
+  'components/search-settings.js',
   'settings-page.js',
   'plugin-card.js',
   'entry.js',

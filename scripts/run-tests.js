@@ -25,6 +25,7 @@ const files = [
   'test/proxy-runtime.test.js',
   'test/statistics.test.js',
   'test/usage-surfaces.test.js',
+  'test/web-search.test.js',
   'test/token-count.test.js',
   'test/account-pool.test.js',
   'test/stream-failover.test.js',

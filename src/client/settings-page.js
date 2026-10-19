@@ -603,6 +603,7 @@ function SettingsPage(props) {
     React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }),
     props.openDetails && !props.insideDetails ? React.createElement('button', { type: 'button', className: 'cb-btn', onClick: props.openDetails }, t('surface.open_window')) : null,
     React.createElement(DisplaySettings, { status, draft, busy, saveSettings, t }),
+    React.createElement(SearchSettings, { status, draft, busy, saveSettings, t }),
     React.createElement(ProxySection, { status, draft, busy, saveSettings, reload: load, t }),
 
     // Quota Warning & Dashboard Card

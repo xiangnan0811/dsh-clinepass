@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+Add opt-in native ClinePass web search through `ctx.web`, with the active account,
+bounded sources, response-body deadlines, cancellation and lifecycle cleanup.
+Preserve the host's search/fetch choices. HTTP failures, missing credentials,
+malformed responses and cancellation stay distinguishable from real zero results.
+Fix provider registration after a settings save whose volatile event arrives
+before the plugin's local snapshot is updated.
+
 Add sidebar quota and a native detail modal containing quota, statistics and full
 configuration, plus reset countdowns and separate display switches. Project
 current-session ClinePass reply/attempt usage through the host's replayable session

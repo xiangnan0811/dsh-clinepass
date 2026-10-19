@@ -129,6 +129,8 @@ dsh-clinebot:
 | `historyImagesToKeep` | `2` | Historical retained images; the latest user/tool input is retained |
 | `timeoutMs` | `15000` | Usage and plan requests |
 | `smokeTimeoutMs` | `25000` | Smoke test |
+| `webSearchEnabled` | `false` | Register native search provider `clinebot` without changing global selection |
+| `searchTimeoutMs` | `15000` | Search deadline, including the response body |
 
 Checked models are what Settings → Models lists. Per-model overrides for
 context, output cap, request budget, input, and reasoning are edited on the
@@ -165,6 +167,16 @@ These are new measurements, not reconstructed history or billing estimates.
 Storage errors remain visible while model calls continue; unsaved measurements
 remain in memory. Reset clears the entire profile's statistics, including filtered
 dates, and archives a corrupt file before replacing it. Accounts and models remain.
+
+Native web search uses the active account and `POST /alpha/web-search` under
+`baseUrl`. Enable it in the plugin card, then select `clinebot` in the host's web
+search settings. Existing search/fetch providers are preserved. Each API request
+asks for at most 10 results (5 if no bound was supplied). Genuine empty results
+are distinct from HTTP, credential, malformed-response, timeout and cancellation
+errors. It never falls back to another website or changes the account pin.
+Disabling or unloading unregisters the provider and cancels pending searches.
+Isolated next and local mock acceptance have passed; live channel availability
+remains unverified.
 
 ## Develop
 

@@ -1,4 +1,8 @@
 const en = {
+      'search.title': 'Native web search', 'search.enabled': 'Register ClinePass as a search provider',
+      'search.hint': 'Off by default. Uses the active ClinePass credential and the configured API. Select clinebot in the host web search settings to use it. Enabling this does not change your global search provider. Channel errors remain errors, not empty results.',
+      'search.timeout': 'Search deadline (ms, including response body)', 'search.save': 'Save search deadline', 'search.bad_timeout': 'Enter an integer deadline of at least 50 ms.',
+      'search.unavailable': 'The host web service is unavailable.', 'search.registered': 'Search provider registered as clinebot.', 'search.disabled': 'ClinePass search provider is not registered.',
       'surface.details': 'ClinePass details', 'surface.open_window': 'Open full details window', 'surface.close': 'Close',
       'surface.loading': 'Loading…', 'surface.quota_error': 'Quota unavailable · open to retry',
       'surface.unknown': 'Unknown',
@@ -285,6 +289,10 @@ const en = {
     }
 
     const zh = {
+      'search.title': '原生网页搜索', 'search.enabled': '将 ClinePass 注册为搜索提供方',
+      'search.hint': '默认关闭。使用当前活动的 ClinePass 凭据和已配置 API。在宿主网页搜索设置中选择 clinebot 后使用；开启此功能不会修改全局搜索提供方。渠道错误保留为错误，不冒充空结果。',
+      'search.timeout': '搜索期限（毫秒，包含响应体）', 'search.save': '保存搜索期限', 'search.bad_timeout': '请输入至少 50 毫秒的整数期限。',
+      'search.unavailable': '宿主未提供网页服务。', 'search.registered': '已注册搜索提供方 clinebot。', 'search.disabled': '尚未注册 ClinePass 搜索提供方。',
       'surface.details': 'ClinePass 详情', 'surface.open_window': '打开完整详情窗口', 'surface.close': '关闭',
       'surface.loading': '正在读取…', 'surface.quota_error': '配额不可用 · 打开后重试',
       'surface.unknown': '未知',
