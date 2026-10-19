@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+Preserve legacy model selections before host schema defaults are applied, and map
+saved native model IDs before importing their edited request budgets. Hiding all
+models now retains provider headers and native controls for later registration
+and restart. Explicit empty selections remain empty.
+
 Add a native Plugins tab for updates from this repository's checked GitHub commit
 or an explicitly selected npm archive. Delegate inspection, installation, profile
 locking, cancellation, recovery and application results to the host installer.

@@ -232,6 +232,48 @@ test('legacy enabledModels becomes an explicit selection', () => {
   assert.deepEqual(migrated.config.explicitModels, ['cline-pass/deepseek-v4-flash'])
 })
 
+test('legacy native model IDs carry hand-edited request budgets into the canonical model', () => {
+  const legacy = 'cline-pass/deepseek-v41-flash', modern = 'cline-pass/deepseek-v4.1-flash'
+  const provider = { headers: { 'X-User': 'kept' }, models: [{ id: legacy, maxTokens: 2048, contextWindow: 196000, input: ['text'] }] }
+  const original = structuredClone(provider)
+  const migrated = migrateConfig({ enabledModels: [legacy], disabledModels: [] }, provider)
+  const cfg = Config(migrated.config)
+  const model = getAllModels(cfg).find(m => m.id === modern)
+  assert.equal(model.requestOutputBudget, 2048)
+  assert.equal(model.contextWindow, 196000)
+  assert.deepEqual(model.input, ['text'])
+  assert.deepEqual(selectedIds(getAllModels(cfg), cfg), [modern])
+  assert.deepEqual(provider, original)
+})
+
+test('stored migration reads explicit selection intent before host defaults and remains stable after restart', async () => {
+  const legacy = 'cline-pass/deepseek-v41-flash', modern = 'cline-pass/deepseek-v4.1-flash'
+  for (const selection of [undefined, { selectionKind: 'explicit', explicitModels: [] }, { selectionKind: 'all-except-disabled', disabledModels: [modern] }]) {
+    const raw = { migrationRevision: 0, enabledModels: [legacy], disabledModels: [],
+      accounts: [{ label: 'Kept account', apiKeyEnv: 'CLINEBOT_API_KEY_2' }], activeAccount: 'CLINEBOT_API_KEY_2',
+      modelOverrides: [{ id: legacy, requestOutputBudget: 4096 }], ...selection }
+    const ctx = { fiber: { entry: { options: { config: raw } } }, settings: { get: () => ({ providers: {} }) } }
+    let stored
+    const first = await migrateStoredConfig(ctx, Config(raw), { replace(value) { stored = value } })
+    assert.equal(first.changed, true)
+    assert.equal(stored.selectionKind, selection?.selectionKind || 'explicit')
+    assert.deepEqual(stored.explicitModels, selection?.selectionKind ? [] : [modern])
+    const chosen = selectedIds(getAllModels(stored), stored)
+    assert.equal(chosen.includes(modern), !selection)
+    assert.deepEqual(stored.accounts, raw.accounts)
+    assert.equal(stored.activeAccount, raw.activeAccount)
+    assert.equal(stored.modelOverrides[0].id, selection?.selectionKind === 'all-except-disabled' ? legacy : modern)
+    assert.equal(stored.modelOverrides[0].requestOutputBudget, 4096)
+    assert.equal(stored.proxyEnabled, false)
+    assert.equal(stored.webSearchEnabled, false)
+    assert.equal(stored.planFilterEnabled, false)
+    assert.equal(stored.historyImageOffload, false)
+    const second = await migrateStoredConfig(ctx, Config(JSON.parse(JSON.stringify(stored))), { replace() { throw new Error('Restart must not rewrite migrated configuration') } })
+    assert.equal(second.changed, false)
+    assert.deepEqual(second.config, stored)
+  }
+})
+
 test('provider payload keeps foreign fields and does not use the output cap as max_tokens', () => {
   const models = getAllModels({}).filter((model) => model.id === 'cline-pass/deepseek-v4-flash')
   const built = buildProviderPayload({

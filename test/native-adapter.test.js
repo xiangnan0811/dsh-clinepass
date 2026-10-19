@@ -202,12 +202,13 @@ test('native streaming probes are metered once as diagnostics and their metadata
   await probe.close()
 })
 
-test('adapter ownership transfers through the public registry and returns to the native provider on unload', async (t) => {
+test('standalone registry ownership preserves hidden provider settings and returns them outside HMR', async (t) => {
   const ctx = new Context()
   await ctx.plugin(llm.default)
   t.after(() => ctx.fiber.dispose())
   let cfg = { enabled: true, nativeAdapterEnabled: false, nativeProvider: null, proxyEnabled: false, modelOverrides: [{ id: model, defaultReasoning: 'high' }] }
   let legacy = buildProviderPayload({ baseUrl: 'https://example.test/v1', apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload
+  legacy.headers = { 'X-User': 'preserved' }
   const original = structuredClone(legacy)
   let nativeRegistration, service, controller
   const settings = { get: () => ({ providers: legacy ? { clinebot: legacy } : {} }), describe: () => [], async mutate(_ns, operations) {
@@ -232,6 +233,13 @@ test('adapter ownership transfers through the public registry and returns to the
   await store.write(moved, { expected: cfg.nativeProvider })
   assert.equal((await service.prepareCall({ provider: 'clinebot', model })).config.maxTokens, 2048)
   await assert.rejects(store.write(original, { expected: original }), /settings changed/)
+  await store.remove()
+  assert.equal(service.listProviders().some((provider) => provider.id === 'clinebot'), false)
+  cfg = parseConfig(JSON.parse(JSON.stringify(cfg)))
+  assert.deepEqual(cfg.nativeProvider.headers, original.headers)
+  assert.deepEqual(cfg.nativeProvider.models, [])
+  await store.write(moved, { expected: cfg.nativeProvider })
+  assert.equal((await service.prepareCall({ provider: 'clinebot', model })).config.maxTokens, 2048)
   await controller.dispose()
   assert.equal(legacy.models[0].maxTokens, 2048)
   assert.equal(service.listProviders().some((provider) => provider.id === 'clinebot'), true)

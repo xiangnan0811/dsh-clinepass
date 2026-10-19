@@ -2,6 +2,58 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
+## Native migration repairs (2026-10-19)
+
+Above `546c752`, three migration/preservation defects were reproduced and fixed:
+
+- A legacy `enabledModels` selection was expanded to every model because the host
+  had already defaulted `selectionKind`. Migration now reads the composed raw
+  Loader entry. The native before-case selected 17 models; the repaired case
+  retained only the canonical V4.1 Flash selection.
+- A hand-edited budget on `cline-pass/deepseek-v41-flash` was imported under that
+  obsolete ID and ignored by its canonical model, yielding the default 65536.
+  Native provider IDs now follow the same alias mapping before importing edits.
+  The repaired native case retained its actual budget 2048 and context 196000.
+- Hiding every model set `nativeProvider` to null and discarded custom headers.
+  The native store now clears its model list while keeping provider settings;
+  its registry route is removed. Native acceptance hid all models, reselected
+  Flash, checked the original header, called the model, hid it again and restarted.
+
+`npm test` passed 133 tests, including targeted before-failure/after-repair checks
+for selection intent, canonical budgets and hidden profile preservation. Client
+remains 187247 bytes; build consistency, lint and route authentication checks pass.
+
+The migration CLI fixtures use separate project-local homes/profiles, fake keys,
+the local mock and the native DSH `0.2.1-rc.2`. Each extracts the production
+tarball and resolves peers to the same installed host. An initial fixture that
+shared another profile's whole node_modules directory could not resolve native
+peers; it is not counted as package-install or adapter acceptance.
+
+- Legacy host edits, explicit empty selection and current revision-1 configuration
+  each passed two actual boots. Own configuration was identical after the second
+  boot; account pin, custom declaration, headers and the foreign provider survived.
+  Each made a native probe and restored exactly one persisted request after reboot.
+- The revision-1 case preserved the plugin's output capability 96000 and requested
+  budget 4096 while honoring the native-page budget 2048. An unknown custom model
+  retained unknown context rather than a fabricated default. An obsolete v2 model
+  cache was ignored and replaced with a v3 cache for the correct active account.
+- Production archive K was also installed through the real native Plugins UI into
+  the existing isolated profile. Package identity/file checks excluded scratch,
+  tests, node_modules and secret files. No version bump or publication occurred.
+- **Additional open defect:** immediately after that hot update, the model profile
+  still referenced the previous proxy credential, which had been removed. A probe
+  failed with MISSING_CREDENTIAL while proxy/adapter status appeared ready. An
+  explicit native `/register` resynchronization returned 200 and restored calls,
+  adding exactly one measured request (29 → 30). This proves the recovery path;
+  it is not a successful automatic hot-update application pass. Its relationship
+  to the previously confirmed HMR teardown transaction failure still needs tracing.
+- A normal restart of that same archive preserved all public configuration and
+  30 requests, retained proxy/search operation and passed another native probe
+  (31 requests). No restart result is substituted for hot-update correctness.
+
+Both HMR lifecycle/application defects, final platform/channel acceptance and
+the remaining complete-candidate checks stay open in the synchronization plan.
+
 ## Native credentials, concurrent sessions and narrow configuration (2026-10-19)
 
 Above `1facce0`, acceptance continued on DSH `0.2.1-rc.2` CLI Web with
