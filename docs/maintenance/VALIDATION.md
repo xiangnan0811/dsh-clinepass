@@ -1,5 +1,50 @@
 # Validation record
 
+## Current Linux acceptance (2026-10-19)
+
+The user confirmed: “当前环境验收通过即可” (acceptance in the current environment
+is sufficient). The completion boundary is therefore the existing Linux x86_64
+CLI Web environment, DSH `0.2.1-rc.2`, Node 24.18.0, project-local isolated
+homes/profiles and local mock services. All P1–P8 features remain in scope.
+Desktop and authenticated real Cline search-channel acceptance are explicitly
+uncovered here; they no longer block this delivery under that user decision.
+The older open-platform prerequisites below record earlier acceptance criteria.
+They do not supersede this current boundary or prove a platform/channel pass.
+
+The final audit reuses the 140 passing tests and native records below because
+runtime, client, tests, scripts, manifest, dependencies and bundle patch are
+unchanged since `9f15bfe`. Current status confirmed healthy synchronization,
+an authenticated listening proxy, a ready native adapter, registered web search
+and 44 persisted requests before the final archive check. The test suite also
+ran client-build consistency, lint and all 26 production route authentication
+checks. Documentation changes alone do not invalidate those runtime results.
+
+| Requirement group | Regression entrypoints | Native evidence retained for this candidate |
+| --- | --- | --- |
+| P1 contracts, cancellation, theme/build | access, native-host, client-bundle and client-request tests | Native schema and adapter; browser theme/focus; response/body cancellation and recovery |
+| P2 model and credential management | model-management, provider-sync, registry, key-discovery and account-pool tests | Model/custom/batch forms, native edits and empty selection; isolated discovery/validation/import; credential EACCES rollback/recovery |
+| P3 proxy, routing and image controls | native-adapter, native-lifecycle, request-shape, session-router, proxy and proxy-runtime tests | Direct/proxy calls, concurrent sessions and account precedence, native image offload/replay, actual component disable/restore and re-enable |
+| P4 persistent statistics | statistics, stream-failover and native-adapter tests | Direct/proxy and raw missing/measured usage; retry-account attribution, CSV/reset, corrupted-file operation and restart persistence |
+| P5 surfaces, commands and diagnostics | usage-surfaces, client-bundle and slash-command tests | 1280px/390px, English/light and Chinese/dark operations; session isolation/cost, modal keyboard, probe cancel/recovery; account/use/ping/stats/telemetry |
+| P6 native search | web-search tests | Native model/tool/provider/result chain, selected account and HTTP 429; opt-in, cancellation and registry lifecycle; local fixture sources only |
+| P7 native updates | update-check and client-bundle tests | Actual native installer, identity/peer rejection, cancellation/offline, concurrency, failure recovery, hot apply and restart-required identity |
+| P8 migration and package | provider-sync, model-management, native-host and lifecycle tests plus archive comparison | Four migration cases with two boots, preserved budget/pin/headers/foreign provider, installed production package and 69 matching runtime/client files |
+
+The cross-stage guarantees were retained: native credential storage and redacted
+outputs; host authentication plus write-origin checks; independent proxy auth;
+distinct context/output-capability/request-budget values; explicit empty model
+selection; account/address/key cache invalidation and rejection of stale writes;
+persist-before-success, rollback and unrelated-provider preservation; unknown
+capabilities/usage and genuine failures remain distinguishable. Each has targeted
+assertions in the regression entrypoints above and the native boundary evidence
+where applicable. Default proxy, search, plan filtering and history offload remain
+off for old configurations that do not explicitly enable them.
+
+Whole-host SIGTERM waiting and a Russian-locale native host remain unverified;
+actual component cleanup and locale fallback were verified separately. No push,
+tag, release, publication, global host upgrade or real-user profile installation
+is part of this delivery.
+
 Original 0.5.7 baseline (historical): `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
 ## Native lifecycle repairs (2026-10-19)
