@@ -1,11 +1,12 @@
     function ensureCss() {
       if (typeof document === 'undefined') return
-      if (document.getElementById('dsh-clinebot-full-css')) return
-      const style = document.createElement('style')
+      const existing = document.getElementById('dsh-clinebot-full-css')
+      const style = existing || document.createElement('style')
       style.id = 'dsh-clinebot-full-css'
       style.dataset.dshPlugin = NS
-      style.textContent = `
+      const css = `
 .cb-page{display:flex;flex-direction:column;gap:16px;padding:0 0 24px;max-width:none;min-width:0}
+.cb-update-panel{min-width:0}.cb-update-panel p{font-size:13px;line-height:1.5}.cb-update-panel code{overflow-wrap:anywhere;font-size:12px}.cb-update-target{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px}.cb-update-panel .cb-row{flex-wrap:wrap}
 .cb-sidebar-quota{appearance:none;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;color:var(--dsw-alias-label-secondary);border:1px solid transparent;border-radius:8px;padding:7px;cursor:pointer;min-width:0;max-width:100%}
 .cb-sidebar-quota:hover,.cb-composer-button:hover{background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary)}
 .cb-sidebar-quota:focus-visible,.cb-composer-button:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}
@@ -132,6 +133,7 @@
   .cb-page .cb-facts th{width:auto}
 }
 `
-      document.head.appendChild(style)
+      if (style.textContent !== css) style.textContent = css
+      if (!existing) document.head.appendChild(style)
     }
 

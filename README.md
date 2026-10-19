@@ -178,6 +178,22 @@ Disabling or unloading unregisters the provider and cancels pending searches.
 Isolated next and local mock acceptance have passed; live channel availability
 remains unverified.
 
+Updates run from **Plugins → ClinePass updates**. The settings shortcut opens
+this bundle's detail page; return to the Plugins list to select that tab. GitHub
+targets always use this repository and a checked commit. Local directories,
+archives and registry installs require an explicit target; local updates accept
+an absolute `.tgz`/`.tar.gz` produced by `npm pack`. The host inspects and installs
+the target, owns the profile lock and cancellation, and reports failure or a
+required restart. Accounts, model settings and statistics are retained.
+
+Running and installed versions are tracked separately, including same-version
+updates. A matching archive path/version cannot prove matching contents; an
+unrecorded Git commit remains unverified. Follow the host's restart/refresh prompt
+and check again. There is no background installation. Archive checks read metadata
+without extracting files (16 MiB compressed, 64 MiB total entries, 256 KiB manifest).
+`GET /dsh-clinebot/update` checks status; installation uses the native dialog,
+and the former HTTP installation action returns 405.
+
 ## Develop
 
 ```sh

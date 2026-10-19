@@ -112,7 +112,7 @@ function ClineDetails(props) {
     React.createElement('div', { className: 'cb-detail-window' },
       React.createElement('div', { className: 'cb-detail-tabs' }, ['overview', 'configuration'].map((value) => React.createElement('button', { type: 'button', className: tab === value ? 'cb-btn cb-btn-active' : 'cb-btn', key: value, 'aria-pressed': tab === value, onClick: () => setTab(value) }, t(`surface.${value}`))),
         tab === 'overview' ? React.createElement('button', { type: 'button', className: 'cb-btn', disabled: loading, onClick: () => load(true) }, loading ? t('surface.loading') : t('quota.refresh')) : null),
-      tab === 'configuration' ? React.createElement(PluginCard, { ...props, view: 'page' }) : React.createElement('div', { className: 'cb-page' },
+      tab === 'configuration' ? React.createElement(PluginCard, { ...props, view: 'page', openPluginUpdates: props.openPluginUpdates ? () => { props.onClose?.(); props.openPluginUpdates() } : undefined }) : React.createElement('div', { className: 'cb-page' },
         error ? React.createElement('div', { className: 'cb-alert-bad' }, error) : null,
         status ? React.createElement(React.Fragment, null,
           React.createElement(QuotaSection, { keyPresent: status.key.present, status, usage: status.usage, accountUsage: accounts, busy: loading ? 'refresh-quota' : '', handleRefreshQuota: () => load(true), hideRefresh: true, t }),

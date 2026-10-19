@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+Add a native Plugins tab for updates from this repository's checked GitHub commit
+or an explicitly selected npm archive. Delegate inspection, installation, profile
+locking, cancellation, recovery and application results to the host installer.
+Remove the custom CLI updater and registry guessing; the update HTTP route is
+read-only. Archive metadata checks validate bundle identity without extraction.
+
+Capture the running package version, real path and original installation source
+at plugin startup. In-place and same-version updates cannot make new files look
+like already running code. Keep unknown commit/archive identity explicit, and
+report check failures separately from an installed checked commit. Refresh this
+plugin's existing stylesheet when a new client bundle loads.
+
 Add opt-in native ClinePass web search through `ctx.web`, with the active account,
 bounded sources, response-body deadlines, cancellation and lifecycle cleanup.
 Preserve the host's search/fetch choices. HTTP failures, missing credentials,

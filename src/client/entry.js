@@ -1,4 +1,4 @@
-const INJECT = ['configForms', 'slots', 'locale']
+const INJECT = ['configForms', 'slots', 'locale', 'pluginNavigation']
 const ROW_KEY = `${PACKAGE_NAME}#${NS}`
 
 function bindScope(ctx) {
@@ -26,6 +26,7 @@ function apply(ctx) {
   ensureCss()
   const bound = bindScope(ctx)
   const quota = createQuotaResource(bound.scope)
+  const openPluginUpdates = () => ctx.pluginNavigation.openBundle(PACKAGE_NAME)
   ctx.effect?.(() => () => quota.dispose(), 'dsh-clinebot: quota observers')
   const card = (props) => React.createElement(
     ErrorBoundary,
@@ -36,18 +37,19 @@ function apply(ctx) {
       scopeError: bound.scopeError,
       refreshScope: () => refreshScope(ctx),
       onStatus: (status) => quota.acceptStatus(status),
+      openPluginUpdates: props?.openPluginUpdates || (() => { props?.close?.(); openPluginUpdates() }),
     }),
   )
   function SettingsSurface(props) {
     const [open, setOpen] = React.useState(false)
-    const detailProps = { ...props, scope: bound.scope, refreshScope: () => refreshScope(ctx), onStatus: (status) => quota.acceptStatus(status) }
+    const detailProps = { ...props, scope: bound.scope, refreshScope: () => refreshScope(ctx), onStatus: (status) => quota.acceptStatus(status), openPluginUpdates: () => { props?.close?.(); openPluginUpdates() } }
     return React.createElement(React.Fragment, null, card({ ...props, view: props?.view || 'page', openDetails: () => setOpen(true) }),
       open ? React.createElement(ClineDetails, { ...detailProps, insideDetails: true, onClose: () => setOpen(false) }) : null)
   }
   function SidebarSurface(props) {
     const [open, setOpen] = React.useState(false)
     return React.createElement(React.Fragment, null, React.createElement(SidebarQuota, { ...props, scope: bound.scope, quota, openDetails: () => setOpen(true) }),
-      open ? React.createElement(ClineDetails, { ...props, scope: bound.scope, refreshScope: () => refreshScope(ctx), onStatus: (status) => quota.acceptStatus(status), insideDetails: true, onClose: () => setOpen(false) }) : null)
+      open ? React.createElement(ClineDetails, { ...props, scope: bound.scope, refreshScope: () => refreshScope(ctx), onStatus: (status) => quota.acceptStatus(status), openPluginUpdates, insideDetails: true, onClose: () => setOpen(false) }) : null)
   }
 
   const addLocale = (locale, dictionary) => {
@@ -119,6 +121,10 @@ function apply(ctx) {
       listen(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register(
         { name: 'conversation.composer.dock', id: 'clinepass-session-usage', order: 10, locale: NS },
         (props) => React.createElement(ErrorBoundary, null, React.createElement(ComposerUsage, { ...props, scope: bound.scope })),
+      )))
+      listen(() => ctx.slots.inject('plugins.tab', () => ctx.slots.register(
+        { name: 'plugins.tab', id: 'clinepass-updates', label: () => ctx.locale.bind(NS)('updates.tab'), order: 80, locale: NS },
+        (props) => React.createElement(ErrorBoundary, null, React.createElement('div', { className: 'cb-page' }, React.createElement(UpdatePanel, props))),
       )))
       return () => {
         for (const off of offs) {

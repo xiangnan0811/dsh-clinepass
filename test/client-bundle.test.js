@@ -49,5 +49,19 @@ test('built client injects configForms and registers the row settings page', () 
     return {}
   })
   assert.equal(loaded.id, 'dsh-clinepass')
-  assert.deepEqual(Array.from(exports.inject), ['configForms', 'slots', 'locale'])
+  assert.deepEqual(Array.from(exports.inject), ['configForms', 'slots', 'locale', 'pluginNavigation'])
+})
+
+test('a hot-loaded bundle replaces its previous stylesheet without duplicating unchanged styles', () => {
+  const source = readFileSync(new URL('../src/client/styles.js', import.meta.url), 'utf8')
+  let css = '/* previous bundle stylesheet */', writes = 0, appended = 0
+  const style = { dataset: {} }
+  Object.defineProperty(style, 'textContent', { get: () => css, set: (value) => { css = value; writes++ } })
+  const document = { getElementById: () => style, createElement: () => { throw Error('duplicate style') }, head: { appendChild() { appended++ } } }
+  const context = vm.createContext({ document, NS: 'dsh-clinebot' })
+  vm.runInContext(source + '\nensureCss()', context)
+  assert.match(css, /\.cb-update-panel/)
+  assert.equal(writes, 1); assert.equal(appended, 0)
+  vm.runInContext('ensureCss()', context)
+  assert.equal(writes, 1)
 })

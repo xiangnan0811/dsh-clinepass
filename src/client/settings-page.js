@@ -16,7 +16,6 @@ function pickSmokeModel(config, models) {
 function SettingsPage(props) {
   const request = useClientRequests()
   const debounceTimerRef = React.useRef(null)
-  const updateTimerRef = React.useRef(null)
   const t = props?.t || makeT(en, en)
   const scope = props?.scope || null
   const scopeError = props?.scopeError || ''
@@ -57,18 +56,6 @@ function SettingsPage(props) {
   const [smokeModel, setSmokeModel] = React.useState('')
   const [accountUsage, setAccountUsage] = React.useState([])
 
-  // Plugin in-app updater state
-  const [updateState, setUpdateState] = React.useState({
-    checking: false,
-    updating: false,
-    currentVersion: '',
-    latestVersion: '',
-    updateAvailable: false,
-    canAutoUpdate: true,
-    error: '',
-    notice: '',
-  })
-
   // Key input state
   const [apiKeyInput, setApiKeyInput] = React.useState('')
   const [baseUrlInput, setBaseUrlInput] = React.useState('')
@@ -88,7 +75,6 @@ function SettingsPage(props) {
     ensureCss()
     return () => {
       clearTimeout(debounceTimerRef.current)
-      clearTimeout(updateTimerRef.current)
     }
   }, [])
 
@@ -122,62 +108,6 @@ function SettingsPage(props) {
   React.useEffect(() => {
     load().catch((e) => setErr(String(e.message || e)))
   }, [load])
-
-  const checkUpdate = React.useCallback(async () => {
-    setUpdateState((s) => ({ ...s, checking: true, error: '' }))
-    try {
-      const res = await request(`${ROUTE_PREFIX}/update`)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json().catch(() => ({}))
-      if (data.latestCheckFailed) throw new Error(t('update.check_failed'))
-      setUpdateState((s) => ({
-        ...s,
-        checking: false,
-        currentVersion: data.currentVersion || s.currentVersion,
-        latestVersion: data.latestVersion || '',
-        updateAvailable: !!data.updateAvailable,
-        canAutoUpdate: data.canAutoUpdate !== false,
-        disabled: data.updatesEnabled === false,
-      }))
-    } catch (error) {
-      setUpdateState((s) => ({ ...s, checking: false, error: String(error.message || error) }))
-    }
-  }, [request])
-
-  React.useEffect(() => {
-    checkUpdate()
-  }, [checkUpdate])
-
-  async function handleTriggerUpdate() {
-    if (updateState.updating) return
-    setUpdateState((s) => ({ ...s, updating: true, error: '', notice: '' }))
-    try {
-      const res = await request(`${ROUTE_PREFIX}/update`, {
-        method: 'POST',
-        headers: { 'x-dsh-plugin-update': '1' },
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok || data.ok === false || data.error) {
-        throw new Error(data.error || `HTTP ${res.status}`)
-      }
-      const newVer = data.updatedVersion || updateState.latestVersion || updateState.currentVersion
-      setUpdateState((s) => ({
-        ...s,
-        updating: false,
-        updateAvailable: false,
-        currentVersion: newVer,
-        notice: t('update.done', { version: newVer }),
-      }))
-      clearTimeout(updateTimerRef.current)
-      updateTimerRef.current = setTimeout(() => checkUpdate(), 2000)
-    } catch (err) {
-      setUpdateState((s) => ({
-        ...s,
-        updating: false,
-        error: t('update.failed', { error: String(err.message || err) }),
-      }))
-    }
-  }
 
   async function handleSaveBaseUrl() {
     const next = String(baseUrlInput || '').trim()
@@ -574,7 +504,7 @@ function SettingsPage(props) {
     ),
 
     // In-app Update Bar
-    React.createElement(UpdateBanner, { updateState, handleTriggerUpdate, t }),
+    React.createElement(UpdatePanel, { t, openPluginUpdates: props.openPluginUpdates }),
 
     // Notifications
     scopeNote ? React.createElement('div', { className: 'cb-banner-warning' }, scopeNote) : null,

@@ -15,7 +15,7 @@ const files = [
   'styles.js',
   'error-boundary.js',
   'progress-bar.js',
-  'components/update-banner.js',
+  'components/update-panel.js',
   'components/key-section.js',
   'components/key-discovery.js',
   'components/accounts-section.js',

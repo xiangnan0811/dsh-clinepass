@@ -2,6 +2,64 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
+## Native update candidate (2026-10-19)
+
+Above `80c38e0`, P7 adds update target checks and a `plugins.tab` contribution.
+The public owner `install(target)` opens the host's existing installer; it owns
+`inspect`/`installBundle`/`cancelInstall`/`waitForInstall`, locking, rollback and
+application feedback. The plugin never spawns its own package manager. Target
+preview reads only source and package identity; it does not duplicate the native
+installation inspection or change a dependency by HTTP POST.
+
+- `npm test`: 131 passed, client 187247 bytes. All 26 production HTTP routes
+  retain host authentication. New checks cover GitHub commit pinning, source
+  recognition/redaction, explicit local targets, malformed/wrong/oversized/link
+  archive manifests, no extraction, success-cache races, source changes during
+  checks, missing manager/profile data, response-body deadlines and cancellation.
+- Native acceptance uses only project-local `DSH_HOME`, fake credentials, a local
+  mock and DSH `0.2.1-rc.2` CLI Web. Disposable archives provide new versions,
+  a same-version code marker, an intentional apply exception and a stalled local
+  dependency. Their fixture versions are not repository releases; the repository
+  remains `0.5.7` and private.
+- Checking the real repository pinned `e10684b8711d577cd769b0cb0c2ce6a87f848162`.
+  Its [manifest](https://github.com/xiangnan0811/dsh-clinepass/blob/e10684b8711d577cd769b0cb0c2ce6a87f848162/package.json)
+  still requires old DSH peers. The native installer correctly refused it on
+  next and retained the existing candidate. Retry/cancel returned to the native
+  install form. A compatible local archive installed successfully; after restart,
+  a real model call retained budget 3072 and High effort and added exactly its
+  measured session usage.
+- An archive that deliberately throws at plugin activation produced native phase
+  `failed`, including `ISOLATED_UPDATE_APPLY_FAILURE`, despite package installation
+  finishing. Reinstalling the normal candidate through the host UI recovered it.
+  Three fake credentials, two selected models, the custom model, proxy settings,
+  rates and all 17 request aggregates remained identical after recovery.
+- A no-HMR overlay verified the restart-required path. Acceptance exposed that
+  package files and even their physical paths can be replaced in place; reading
+  the current manifest after install falsely identifies running code. The final
+  implementation captures version/path/source at instance startup. Installing a
+  same-version marked archive then left `runtimeMatchesInstallation: false` and
+  its fixture-only authenticated marker at 404 until restart; after restart the
+  marker returned the new code and the running identity matched. Regression tests
+  cover both retargeted symlinks and unchanged paths/version numbers.
+- Two independent browser pages started concurrent installs. With a fixture-only
+  native idle deadline of 1000 ms, the stalled dependency timed out and its local
+  download connections closed; the other archive install succeeded. Each page
+  received its own result. The same configuration and statistics snapshot was
+  intact afterward. Ordinary startup without either test overlay was restored.
+- Browser offline and check cancellation displayed errors without a current-commit
+  success claim, then recovered to explicit target checks. English/light at 390px
+  had content/scroll width 281px. Chinese/dark native detail cards were readable at
+  390px (285px/285px); nested Escape closed only the detail modal and restored the
+  original button's focus. Native language choices were English and Chinese.
+- A hot client update replaced an existing stale stylesheet, left exactly one
+  style node and restored the sidebar's computed flex layout. A regression test
+  also checks that unchanged styles are not rewritten. The settings-to-Plugins
+  shortcut closed the settings modal.
+- Desktop and final whole-plan acceptance remain open. The public GitHub candidate
+  has not been updated/pushed here; its old compatibility refusal is not proof of
+  installing a published next candidate. No interactive profile, global DSH
+  installation, tag, Release or npm publication was changed.
+
 ## Native web search candidate (2026-10-19)
 
 Above `aefdfd1`, P6 implements the opt-in `clinebot` search provider using the

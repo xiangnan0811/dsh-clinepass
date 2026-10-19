@@ -34,7 +34,7 @@ test('every plugin route refuses unauthenticated requests before reading or chan
   const forbidden = () => { assert.fail('unauthenticated handler reached plugin state') }
   const deps = { live: forbidden, getSettingsApi: forbidden, syncProviderState: forbidden, triggerAutoDiscover: forbidden }
   for (const register of [registerSettingsRoutes, registerAccountsRoutes, registerModelsRoutes, registerAuthRoutes, registerKeyRoutes, registerProxyControls, registerNativeModelRoutes, registerStatsRoutes, registerProbeRoutes]) register(ctx, deps)
-  registerPluginUpdater(ctx, { endpoint: '/dsh-clinebot/update' })
+  registerPluginUpdater(ctx, { endpoint: '/dsh-clinebot/update', manifestUrl: new URL('../package.json', import.meta.url) })
   assert.equal(routes.length, 26)
   const req = { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost' }, socket: { remoteAddress: '127.0.0.1' } }
   for (const code of [401, 403]) {
