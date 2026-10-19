@@ -39,6 +39,9 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 - 可以保存前验证密钥，也可以主动检查已知 Cline CLI、VS Code、Cursor 文件及 Cline 环境变量。发现列表仅显示遮罩，通过五分钟有效的服务端编号导入所选密钥到账户池。编辑器加密的秘密可能无法发现。
 - 冒烟测试可以选择模型。Muse Spark 使用 `reasoning_effort: low` 和 1024 的输出上限，避免思考把正文挤空。
 - 按 DSH 配置档持久化请求结果、重试次数、延迟及实际返回的 token 计数。可按 UTC 日期、模型或账户筛选、导出 CSV、重置统计；`/cline stats` 和 `/cline telemetry` 显示同一份汇总。不保存提示文本或密钥值。
+- 侧栏配额按钮打开宿主详情弹窗，包含配额、统计和完整配置，适合窄屏。配额显示重置倒计时，缺失时间或用量保持未知。侧栏和输入框组件可分别关闭，默认开启。
+- 输入框仅显示当前会话的 ClinePass 回复／尝试用量，排除其他 provider。费用需要在显示设置中明确填写每模型、每百万输入／输出 token 的费率；币种默认 USD，仅表示单位，不做汇率换算。没有费率或完整 usage 时显示不可计算；缓存按输入费率估算，推理不重复加到输出。
+- 流式模型诊断最多请求 1024 输出 token、期限 30 秒，可取消，显示首个文本／思考／工具输出和总耗时。诊断计入配置档统计，不计入会话回复用量。`/cline ping <model>` 或 `/cline ping default` 使用该诊断；裸 `/cline ping` 保留 API 连通性检查。`/cline account` 查看账户，`/cline use <凭据名>` 钉选，`/cline use auto` 恢复自动路由。
 - 同一张账号卡可以保存额外的 `CLINEBOT_API_KEY_*`。账号名先写入账号池，再保存密钥。密钥没有保存成功时，这个新名字会从账号池去掉。之后的 DSH 对话如果收到 HTTP 429 或 402，会改用下一个已保存的账号。切换账号、这次轮换、修改 API 地址、修改主凭据名，或替换当前正在使用的密钥，都会清掉上一份套餐模型列表，直到下一次成功读到套餐。替换当前密钥时也会删掉已保存的套餐缓存，旧列表不会再从磁盘装回来。已经开始的套餐读取也不能把这份列表装回去。`/cline` 输出纯文本。
 
 `api.cline.bot` 的 `GET /api/v1/models` 返回 404。有密钥时，发现走 `GET /users/me/plan`。`cline-pass/deepseek-v4.1-flash` 是普通 ClinePass 模型，也是默认冒烟模型。

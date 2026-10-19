@@ -2,6 +2,44 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
+## Usage surfaces and diagnostics candidate (2026-10-19)
+
+Above `0b40f8f`, the P5 implementation adds sidebar quotas, a native detail modal,
+current-session projections, explicit-rate estimates and streaming probes. This
+is a committed implementation checkpoint; remaining acceptance in the
+[sync plan](UPSTREAM_SYNC_PLAN.md) still applies.
+
+- `npm test`: 114 passed, including build drift and lint checks. The generated
+  client is 177519 bytes, below 256 KiB. Authentication tests cover all 26 routes.
+  New checks exercise mixed-provider replay, absent native wire usage, replacement
+  settlements/retries, explicit/unknown/zero rates, countdown states, quota observer
+  lifetimes, probe cancellation/deadlines/shutdown, diagnostic attribution,
+  display reads versus routing caches, and concurrent preference patches.
+- Packed installation into the project-local isolated CLI Web profile used DSH
+  `0.2.1-rc.2`, fake credentials and a local mock. Sidebar and composer surfaces
+  appeared before visiting settings. The native modal preserved the conversation
+  and closed with Escape. Its overview and full configuration are separate tabs.
+- In a mixed-provider native session, the host counted 96 tokens while ClinePass
+  showed one ClinePass reply and 48 tokens, excluding the other provider's 48.
+  Switching sessions restored the older session's own unknown/measured state;
+  restart retained the projection. A user-entered rate of USD 2/10 per million
+  prompt/output tokens produced USD 0.00016 for 40 prompt and 8 output tokens,
+  without adding cached or reasoning tokens twice.
+- Native `/cline account`, `/cline use <name>`, `/cline use auto` and
+  `/cline ping default` completed. Probes were recorded once as source `probe`,
+  without a session id, and did not increase the composer reply counter. The
+  latest packed UI probe returned first-output and total latency of 73 ms against
+  the local mock; those timings do not describe the real ClinePass service.
+- The final responsive quota cards were inspected in the actual host modal at
+  390px in light theme: content width and scroll width were both 285px, labels and
+  reset text remained readable, missing weekly/monthly data stayed unknown.
+  Earlier desktop/native-modal checks do not replace the remaining complete
+  light/dark, compact-sidebar, display-switch and error/recovery acceptance matrix.
+- Remaining native checks include delayed-probe cancellation and recovery,
+  quota failure/past-reset recovery, full bilingual/keyboard/mobile paths and
+  P2/P3 lifecycle/concurrency/import scenarios. Desktop and real channel calls
+  remain unexecuted. No interactive profile or global installation was modified.
+
 ## Persistent statistics candidate (2026-10-19)
 
 Above `29914f9`, P4 adds profile-isolated durable statistics, queries and controls.

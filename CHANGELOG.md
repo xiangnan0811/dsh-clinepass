@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+Add sidebar quota and a native detail modal containing quota, statistics and full
+configuration, plus reset countdowns and separate display switches. Project
+current-session ClinePass reply/attempt usage through the host's replayable session
+API, excluding other providers and diagnostics. Estimate costs only from explicit
+per-model rates; unknown measurements remain unknown.
+
+Add cancellable native streaming probes, first-output and total latency, and
+`/cline account`, `/cline use <name|auto>` and `/cline ping <model|default>`.
+Keep bare ping as an API health check. Mark probes separately in profile metrics.
+Prevent the native SDK's synthesized zero usage from entering session settlements.
+Display-only quota reads no longer populate routing measurements. Merge preference
+patches inside the write queue so concurrent saves preserve other fields.
+
 Persist profile statistics with daily/model/account aggregates, measured-sample
 counts, source and retry-attempt attribution, UTC filters, CSV export and reset.
 Use the host's profile directory, atomic replacement and cross-process file lock.

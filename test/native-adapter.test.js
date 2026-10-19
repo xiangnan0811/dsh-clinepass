@@ -13,6 +13,8 @@ import { createProxyServer } from '../lib/proxy-server.js'
 import { createNativeAdapterController } from '../lib/native-adapter-controller.js'
 import { parseConfig } from '../lib/config.js'
 import { measureStream } from '../lib/stream-failover.js'
+import { createModelProbe } from '../lib/model-probe.js'
+import { clinepassUsageProjection } from '../lib/session-usage.js'
 
 const require = createRequire(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
 const pi = require('@deepseek-ai/dsh-llm-pi-ai')
@@ -23,14 +25,14 @@ const protocol = await import(pathToFileURL(join(dshLib, '../node_modules/@earen
 const deps = { ...pi, ...llm, ...protocol }
 const model = 'cline-pass/deepseek-v4.1-flash'
 
-async function mock(t) {
+async function mock(t, { reportUsage = true } = {}) {
   const calls = []
   const server = http.createServer(async (req, res) => {
     const parts = []; for await (const part of req) parts.push(part)
     calls.push({ body: JSON.parse(Buffer.concat(parts).toString()), headers: req.headers })
     res.writeHead(200, { 'Content-Type': 'text/event-stream' })
     const chunk = (delta, finish_reason = null) => `data: ${JSON.stringify({ id: 'native-test', object: 'chat.completion.chunk', created: 1, model, choices: [{ index: 0, delta, finish_reason }] })}\n\n`
-    res.end(chunk({ role: 'assistant', content: 'pong' }) + chunk({}, 'stop') + `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, prompt_tokens_details: { cached_tokens: 5 }, completion_tokens_details: { reasoning_tokens: 1 } } })}\n\n` + 'data: [DONE]\n\n')
+    res.end(chunk({ role: 'assistant', content: 'pong' }) + chunk({}, 'stop') + (reportUsage ? `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, prompt_tokens_details: { cached_tokens: 5 }, completion_tokens_details: { reasoning_tokens: 1 } } })}\n\n` : '') + 'data: [DONE]\n\n')
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   t.after(() => { server.closeAllConnections(); return new Promise((resolve) => server.close(resolve)) })
@@ -157,6 +159,47 @@ test('historical image policy uses the native logged offload and survives detach
   assert.equal(restored.deriveMessages()[0].content[0].offloaded, true)
   assert.equal(restored.deriveMessages()[1].content[0].text, last.data.content[0].text)
   assert.equal(first.data.content[0].attachment.bytes, 1)
+})
+
+test('absent wire usage stays absent from native settlements and their replay projection', async (t) => {
+  const upstream = await mock(t, { reportUsage: false })
+  const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [] }
+  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-key', getAttachments: () => undefined, getFs: () => undefined })
+  const service = await runtime(t, adapter)
+  const prepared = await service.prepareCall({ provider: 'clinebot', model })
+  const chunks = await Array.fromAsync(prepared.stream({ ...prepared.config, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
+  assert.equal(chunks.some((chunk) => chunk.type === 'usage'), false)
+  assert.equal(chunks.at(-1).reason.kind, 'stop')
+  const accumulator = new llm.AssistantStreamAccumulator()
+  for (const chunk of chunks) accumulator.push({ time: 1, chunk })
+  const { Session } = require('@deepseek-ai/dsh-session')
+  const session = Session.create('absent-usage-fixture')
+  const header = session.append('request/header', { header: { config: prepared.config }, reason: 'initial' })
+  const settled = session.append('assistant/message', { turn: 0, step: 0, message: llm.createAssistantMessage({ source: { provider: 'clinebot', model }, content: [{ type: 'text', text: 'pong' }] }), stream: accumulator.snapshot() }, { surfaceOp: 'append' })
+  const result = [header, settled].reduce((snapshot, event) => clinepassUsageProjection.apply(snapshot, event), clinepassUsageProjection.init())
+  assert.equal(result.view.models[model].calls, 1)
+  assert.equal(result.view.models[model].measurements.totalTokens.samples, 0)
+})
+
+test('native streaming probes are metered once as diagnostics and their metadata stays local', async (t) => {
+  const upstream = await mock(t)
+  const records = [], probeRequests = new WeakSet(), metadata = new WeakMap()
+  const proxy = createProxyServer({ snapshot: async () => ({ config: { enabled: true, proxyEnabled: true, baseUrl: upstream.baseUrl }, accounts: [{ apiKeyEnv: 'CLINEBOT_API_KEY', present: true, value: 'fake-key' }] }), onRequest: (record) => records.push(record) })
+  await proxy.start(); t.after(() => proxy.stop())
+  const state = { profile: buildProviderPayload({ baseUrl: proxy.baseUrl, apiKeyEnv: `CLINEBOT_PROXY_KEY_${proxy.port}`, models: getAllModels({}) }).payload, overrides: [] }
+  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => proxy.token, getAttachments: () => undefined, getFs: () => undefined,
+    noteDispatch: (options, value) => { value.source = probeRequests.has(options) ? 'probe' : 'conversation'; metadata.set(options, value) } })
+  const service = await runtime(t, adapter, (options, next) => measureStream(next(), options, () => metadata.get(options), () => assert.fail('duplicate native metric')))
+  const probe = createModelProbe({ inject(_deps, callback) { callback({ llm: service }) } }, { live: () => ({}), probeRequests })
+  const result = await probe.run(model)
+  assert.equal(result.ok, true)
+  assert.equal(records.length, 1)
+  assert.equal(records[0].source, 'probe')
+  assert.equal(records[0].transport, 'proxy')
+  assert.equal(records[0].usageFormat, 'openai')
+  assert.equal(records[0].sessionId, '')
+  assert.equal(upstream.calls[0].headers['x-clinepass-source'], undefined)
+  await probe.close()
 })
 
 test('adapter ownership transfers through the public registry and returns to the native provider on unload', async (t) => {

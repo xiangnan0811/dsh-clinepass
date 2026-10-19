@@ -18,7 +18,7 @@ function canReveal(masked, full) {
   return Boolean(full) && Boolean(masked) && full !== masked
 }
 
-function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t }) {
+function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, hideRefresh = false, t }) {
   const [showEmail, setShowEmail] = React.useState(false)
   const checkedAt = formatResetTime(usage?.checkedAt)
   const activeEnv = status?.key?.envName || ''
@@ -35,6 +35,7 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
   return React.createElement(
     React.Fragment,
     null,
+    usage?.ok === false ? React.createElement('div', { className: 'cb-alert-bad', role: 'alert' }, usage.error || t('surface.quota_error')) : null,
     status.quotaWarning
       ? React.createElement(
           'div',
@@ -62,7 +63,7 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
             'div',
             { className: 'cb-section-title' },
             t('quota.title'),
-            React.createElement(
+            hideRefresh ? null : React.createElement(
               'button',
               {
                 type: 'button',
@@ -99,24 +100,7 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
               )),
             ),
           ),
-          React.createElement(
-            'table',
-            { className: 'cb-table cb-quota' },
-            React.createElement(
-              'thead',
-              null,
-              React.createElement(
-                'tr',
-                null,
-                React.createElement('th', null, t('quota.col_limit')),
-                React.createElement('th', null, t('quota.col_used')),
-                React.createElement('th', null, t('quota.col_meter')),
-                React.createElement('th', null, t('quota.col_reset')),
-              ),
-            ),
-            React.createElement(
-              'tbody',
-              null,
+          React.createElement('div', { className: 'cb-quota-windows' },
             React.createElement(ProgressBar, {
               label: t('quota.window_5h'),
               known: typeof usage?.windows?.fiveHour?.percentUsed === 'number',
@@ -141,7 +125,6 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
               resetsAt: usage?.windows?.monthly?.resetsAt,
               t,
             }),
-            ),
           ),
           others.length
             ? React.createElement(

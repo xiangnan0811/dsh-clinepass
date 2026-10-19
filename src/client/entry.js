@@ -25,6 +25,8 @@ function refreshScope(ctx) {
 function apply(ctx) {
   ensureCss()
   const bound = bindScope(ctx)
+  const quota = createQuotaResource(bound.scope)
+  ctx.effect?.(() => () => quota.dispose(), 'dsh-clinebot: quota observers')
   const card = (props) => React.createElement(
     ErrorBoundary,
     null,
@@ -33,8 +35,20 @@ function apply(ctx) {
       scope: bound.scope,
       scopeError: bound.scopeError,
       refreshScope: () => refreshScope(ctx),
+      onStatus: (status) => quota.acceptStatus(status),
     }),
   )
+  function SettingsSurface(props) {
+    const [open, setOpen] = React.useState(false)
+    const detailProps = { ...props, scope: bound.scope, refreshScope: () => refreshScope(ctx), onStatus: (status) => quota.acceptStatus(status) }
+    return React.createElement(React.Fragment, null, card({ ...props, view: props?.view || 'page', openDetails: () => setOpen(true) }),
+      open ? React.createElement(ClineDetails, { ...detailProps, insideDetails: true, onClose: () => setOpen(false) }) : null)
+  }
+  function SidebarSurface(props) {
+    const [open, setOpen] = React.useState(false)
+    return React.createElement(React.Fragment, null, React.createElement(SidebarQuota, { ...props, scope: bound.scope, quota, openDetails: () => setOpen(true) }),
+      open ? React.createElement(ClineDetails, { ...props, scope: bound.scope, refreshScope: () => refreshScope(ctx), onStatus: (status) => quota.acceptStatus(status), insideDetails: true, onClose: () => setOpen(false) }) : null)
+  }
 
   const addLocale = (locale, dictionary) => {
     try {
@@ -59,7 +73,7 @@ function apply(ctx) {
 
     ctx.effect(() => {
       if (!ctx.slots || typeof ctx.slots.inject !== 'function') return undefined
-      const surface = (props) => card({ ...props, view: props?.view || 'page' })
+      const surface = (props) => React.createElement(SettingsSurface, props)
       const label = () => {
         try {
           const translate = ctx.locale?.bind?.(NS)
@@ -97,6 +111,14 @@ function apply(ctx) {
       listen(() => ctx.slots.inject('settings.models.provider-card', () => ctx.slots.register(
         { name: 'settings.models.provider-card', key: NS, locale: NS },
         (props) => props?.provider?.provider === 'clinebot' ? React.createElement(ErrorBoundary, null, React.createElement(NativeModelEditor, props)) : null,
+      )))
+      listen(() => ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register(
+        { name: 'sidebar.footer.action', id: 'clinepass-quota', order: 20, locale: NS },
+        (props) => React.createElement(ErrorBoundary, null, React.createElement(SidebarSurface, props)),
+      )))
+      listen(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register(
+        { name: 'conversation.composer.dock', id: 'clinepass-session-usage', order: 10, locale: NS },
+        (props) => React.createElement(ErrorBoundary, null, React.createElement(ComposerUsage, { ...props, scope: bound.scope })),
       )))
       return () => {
         for (const off of offs) {

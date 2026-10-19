@@ -65,6 +65,21 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   reported token counters. Filter by UTC date, model or account, export CSV, or
   reset statistics from the settings card. `/cline stats` and `/cline telemetry`
   show the same profile totals. Prompts and credential values are never stored.
+- A sidebar quota button opens the host's detail modal with quotas, statistics
+  and full configuration, including a narrow-screen entry. Reset countdowns keep
+  missing times and usage unknown. Sidebar and composer displays default on and
+  have separate switches.
+- Composer usage comes from the current session's ClinePass reply/attempt
+  projection, excluding other providers. Cost estimates require explicit per-model
+  input/output rates per million tokens. USD is the default unit; changing currency
+  performs no conversion. Missing rates or incomplete usage prevent calculation.
+  Cached prompt tokens use the input rate; reasoning is already within output.
+- Streaming probes allow cancellation, request at most 1024 output tokens and
+  expire after 30 seconds. They measure first text/reasoning/tool output and total
+  duration, and count in profile statistics rather than session reply usage.
+  `/cline ping <model>` or `/cline ping default` runs a probe; bare `/cline ping`
+  retains API health checks. `/cline account` lists accounts, `/cline use <name>`
+  pins one, and `/cline use auto` restores automatic routing.
 - Saves extra `CLINEBOT_API_KEY_*` accounts on the same card. The pool name is
   saved before the secret. If the secret is not stored, that new name is
   removed. A later DSH turn that gets HTTP 429 or 402 switches to the next

@@ -98,6 +98,7 @@ function SettingsPage(props) {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
     setStatus(data)
+    props.onStatus?.(data)
     setDraft(data.config || {})
     setBaseUrlInput(data.config?.baseUrl || '')
     const choices = smokeChoices(data.availableModels, data.config)
@@ -258,7 +259,7 @@ function SettingsPage(props) {
       const res = await request(`${ROUTE_PREFIX}/usage`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
-      setStatus((prev) => (prev ? { ...prev, usage: data } : prev))
+      if (status) { const next = { ...status, usage: data }; setStatus(next); props.onStatus?.(next) }
       const present = (status?.accounts || []).filter((account) => account.present).length
       if (present > 1) {
         const extra = await request(`${ROUTE_PREFIX}/usage/accounts?fresh=1`, { cache: 'no-store' })
@@ -600,6 +601,8 @@ function SettingsPage(props) {
 
     // Accounts Pool Card
     React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }),
+    props.openDetails && !props.insideDetails ? React.createElement('button', { type: 'button', className: 'cb-btn', onClick: props.openDetails }, t('surface.open_window')) : null,
+    React.createElement(DisplaySettings, { status, draft, busy, saveSettings, t }),
     React.createElement(ProxySection, { status, draft, busy, saveSettings, reload: load, t }),
 
     // Quota Warning & Dashboard Card
@@ -627,6 +630,7 @@ function SettingsPage(props) {
 
     // Card 4: Session Metrics & Usage Tracking
     React.createElement(StatsSection, { status, t }),
+    React.createElement(ModelProbe, { status, t }),
 
     // Card 5: Diagnostics & Sync with DSH
     React.createElement(DiagSection, {
