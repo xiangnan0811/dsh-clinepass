@@ -86,6 +86,34 @@ those platform/channel results. Whole-host shutdown waiting remains unproven,
 separately from successful component unload. No push, release, tag or publication
 occurred.
 
+## Candidate archive and remaining platform prerequisites (2026-10-19)
+
+The CLI candidate at `0b1346a` was packed as `dsh-clinepass-0.5.7.tgz`:
+228136 bytes, 79 files, SHA-256
+`e061d677ebfa5480090ea3352ee3d19eb36bd15a6bed93011678ce8383df108e`.
+Every archived file was compared byte-for-byte to that working tree with no
+differences. Its whitelist excluded tests, scratch, dependencies and secrets;
+69 runtime/client files also matched the native installed production package.
+This is an isolated CLI candidate, not a published or Desktop-accepted release.
+Later prerequisite documentation does not change that archive's identity.
+
+The execution host reports Linux x86_64. The target's [official Desktop packaging
+source](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/desktop/scripts/package-target.ts)
+supports macOS arm64/x64 and Windows x64, requiring matching OS build hosts. The
+[download page](https://deepseek.com/harness/) lists macOS and Windows downloads;
+there is no Linux release entry there. An unsupported Linux development shell
+would not prove either distributed Desktop target. Desktop was not built or
+launched. Its [profile resolver](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/desktop/src/paths.ts)
+uses `DSH_HOME/profiles/desktop`; isolation therefore needs a separate DSH_HOME
+and Electron user-data directory, as in the [official development launcher](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/desktop/scripts/dev.ts).
+The npm Desktop manifest is private and the registry lookup returned 404;
+there is no npm desktop executable to invoke from this installed CLI.
+
+Remaining acceptance needs an accessible macOS/Windows isolated Desktop and an
+authorized real Cline search credential configured outside the repository.
+The owned profiles currently contain only fake keys. Neither prerequisite is
+inferred from CLI Web success or from the absence of a desktop entry in PATH.
+
 ## Native migration repairs (2026-10-19)
 
 Above `546c752`, three migration/preservation defects were reproduced and fixed:

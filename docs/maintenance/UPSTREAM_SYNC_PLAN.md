@@ -71,9 +71,11 @@
 | P5 界面与诊断 | 1280px／390px、英文浅色操作、中文深色阅读和错误恢复、会话隔离／费用、弹窗键盘、原生命令与流式测速 | 按实际覆盖描述语言／主题；俄文宿主环境缺失时只记录回退的源码／回归证据 |
 | P6 原生搜索 | 隔离 next 工具链、来源、账户切换、429、取消和错误矩阵 | 使用获授权的隔离账号核实真实 Cline 渠道；当前假密钥不可证明真实服务可用 |
 | P7 更新 | 原生安装、身份／兼容拒绝、并发、取消、失败恢复、自动热更新、需重启和运行身份 | Desktop 更新；公开源仍为旧候选，推送／发布不在本次授权内 |
-| P8 集成与交付准备 | 当前代码四类迁移两次启动；生产包原生安装及功能证据；三语言说明已同步 | 最终 tarball 身份／文件清单核对、Desktop 与真实渠道结果、最终范围核对和本地提交 |
+| P8 集成与交付准备 | 当前代码四类迁移两次启动；生产包原生安装及功能证据；三语言说明已同步；`0b1346a` 候选包 79 个文件与工作区逐一一致 | Desktop 与真实渠道结果；如产生修复，重做受影响验收并打包；最终范围核对和本地提交 |
 
 按顺序完成当前候选包核对，再处理具备环境与授权的渠道／平台验收，最后更新交付状态。已询问 Desktop 可执行文件／隔离 profile 和真实搜索验收环境，尚无回复；常见应用入口未找到匹配项不能证明未安装。环境信息缺失时保留待验收，不将 mock 或 CLI Web 记为 Desktop／真实渠道通过。
+
+2026-10-19 已进一步核实平台条件：当前执行主机为 Linux x86_64；目标 `dsh-v0.2.1-rc.2` 的[官方打包目标](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/desktop/scripts/package-target.ts)只有 macOS arm64／x64 和 Windows x64，并要求对应构建宿主；[官方下载页](https://deepseek.com/harness/)提供 macOS／Windows 下载，没有 Linux 发布入口。不能在当前 Linux 主机完成对应发行版的 Desktop 验收，需要可用的 macOS／Windows 隔离环境。Desktop 的[原生 profile 路径](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/desktop/src/paths.ts)固定为 `DSH_HOME/profiles/desktop`，应独立设置 DSH_HOME，并按[官方开发启动器](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.2/apps/desktop/scripts/dev.ts)使用独立 Electron user-data-dir；不以任意另起的 profile 名称推定与日常 Desktop 隔离。尚未启动或构建 Desktop。
 
 ### 批次 1：具体场景
 
