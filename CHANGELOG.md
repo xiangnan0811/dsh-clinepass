@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
+
+Requires DeepSeek Harness `^0.2.1-rc.2`. This release adds the upstream feature
+set while retaining this repository's package, provider, configuration and update
+identities. Existing model selections and account settings are preserved; proxy,
+web search, verified-plan filtering and historical image offload remain opt-in.
 
 Fix automatic adapter and credential synchronization after native hot updates.
 Disabling the plugin now restores its saved built-in provider through the host's
@@ -69,7 +74,7 @@ Apply per-model effort defaults through a ClinePass-only native adapter before
 request configuration freezes. Keep explicit caller choices and native model
 parameter edits. Optional historical image offload uses the host's logged
 decisions and replay, retaining original attachments. Image limits and the full
-JSON request budget remain separate. This candidate requires next DSH peers
+JSON request budget remain separate. This release requires next DSH peers
 (`^0.2.1-rc.2`); old-host validation remains historical.
 
 Add verified-plan filtering, visible/plan/empty selection shortcuts, batch model

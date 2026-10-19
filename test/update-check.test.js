@@ -5,12 +5,14 @@ import { join } from 'node:path'
 import { createUpdateChecker, installationSource, UPDATE_REPOSITORY } from '../lib/update-check.js'
 import { registerPluginUpdater } from '../lib/updater.js'
 import http from 'node:http'
+import { readFileSync } from 'node:fs'
 import { create as createTar } from 'tar'
 import { readUpdateArchive } from '../lib/update-archive.js'
 
 const shaA = 'a'.repeat(40), shaB = 'b'.repeat(40), shaC = 'c'.repeat(40)
 const manifestUrl = new URL('../package.json', import.meta.url)
-const remoteManifest = { name: 'dsh-clinepass', version: '0.5.7', dsh: { bundle: { patch: './cordis.patch.yml' } } }
+const currentVersion = JSON.parse(readFileSync(manifestUrl, 'utf8')).version
+const remoteManifest = { name: 'dsh-clinepass', version: currentVersion, dsh: { bundle: { patch: './cordis.patch.yml' } } }
 
 async function fixture(t, overrides = {}) {
   const scratch = new URL('../.tmp/agent/', import.meta.url)
@@ -19,7 +21,7 @@ async function fixture(t, overrides = {}) {
   await mkdir(join(profile, 'node_modules'))
   await symlink(new URL('..', import.meta.url).pathname, join(profile, 'node_modules/dsh-clinepass'), process.platform === 'win32' ? 'junction' : 'dir')
   t.after(() => rm(profile, { recursive: true, force: true }))
-  const state = { row: { name: 'dsh-clinepass', installed: true, source: overrides.initialSource ?? `github:${UPDATE_REPOSITORY}#${shaA}`, enabled: true, version: '0.5.7' }, calls: [], manifest: remoteManifest, sha: shaB, installs: 0 }
+  const state = { row: { name: 'dsh-clinepass', installed: true, source: overrides.initialSource ?? `github:${UPDATE_REPOSITORY}#${shaA}`, enabled: true, version: currentVersion }, calls: [], manifest: remoteManifest, sha: shaB, installs: 0 }
   const manager = {
     listBundles: async () => state.row ? [structuredClone(state.row)] : [],
     inspect() { throw new Error('Target preview must not duplicate the native installer inspection') },
@@ -58,7 +60,7 @@ test('checks pin this repository to an exact commit, cache only successful data 
   const data = await checker.check()
   assert.equal(data.state, 'available'); assert.equal(data.runtimeMatchesInstallation, true)
   assert.equal(data.target.spec, `github:${UPDATE_REPOSITORY}#${shaB}`)
-  assert.equal(data.target.version, '0.5.7')
+  assert.equal(data.target.version, currentVersion)
   assert.equal(state.calls.length, 2)
   assert.ok(state.calls[1].url.includes(`/${shaB}/package.json`))
   assert.ok(state.calls.every(({ options }) => !options.headers.Authorization))
@@ -85,7 +87,7 @@ test('local and registry installs require an explicit target; archive checks pre
   assert.equal(state.calls.length, 0)
   state.row.source = '/fixture/old.tgz'; state.row.version = '0.5.8'
   assert.equal((await checker.check()).state, 'runtime-unverified')
-  state.row.version = '0.5.7'
+  state.row.version = currentVersion
   assert.equal((await checker.check({ target: 'github' })).target.commit, shaB)
   const good = await archive(profile, { ...remoteManifest, version: '0.5.8' })
   assert.equal((await checker.check({ target: good })).target.spec, good)
@@ -108,7 +110,7 @@ test('an in-place same-version update cannot turn a new recorded commit into pro
   assert.equal((await checker.check()).runtimeMatchesInstallation, true)
   state.row.source = `github:${UPDATE_REPOSITORY}#${shaB}`
   const oldInstance = await checker.check()
-  assert.equal(oldInstance.currentVersion, '0.5.7'); assert.equal(oldInstance.installedVersion, '0.5.7')
+  assert.equal(oldInstance.currentVersion, currentVersion); assert.equal(oldInstance.installedVersion, currentVersion)
   assert.equal(oldInstance.runtimeMatchesInstallation, false); assert.equal(oldInstance.state, 'runtime-unverified')
   const restarted = createUpdateChecker({ manifestUrl, getManager: () => manager, getProfileDir: () => profile, fetchImpl: async (url) => Response.json(url.includes('api.github.com') ? [{ sha: shaB }] : remoteManifest) })
   t.after(() => restarted.close())
@@ -127,7 +129,7 @@ test('a retargeted package symlink cannot change the recorded running version be
   await symlink(updated, join(profile, 'node_modules/dsh-clinepass'), process.platform === 'win32' ? 'junction' : 'dir')
   state.row.source = '/fixture/new.tgz'; state.row.version = '0.5.8'
   const beforeRestart = await running.check()
-  assert.equal(beforeRestart.currentVersion, '0.5.7'); assert.equal(beforeRestart.installedVersion, '0.5.8')
+  assert.equal(beforeRestart.currentVersion, currentVersion); assert.equal(beforeRestart.installedVersion, '0.5.8')
   assert.equal(beforeRestart.runtimeMatchesInstallation, false); assert.equal(beforeRestart.runtimeMismatch, true)
   assert.equal(beforeRestart.state, 'runtime-unverified')
   const restarted = createUpdateChecker(options)

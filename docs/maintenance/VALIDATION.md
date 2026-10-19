@@ -1,6 +1,25 @@
 # Validation record
 
-## Current Linux acceptance (2026-10-19)
+## 0.6.0 release preparation (2026-10-19)
+
+The user separately authorized completing the release after development
+acceptance. The release targets this repository's main branch, `v0.6.0` tag and
+GitHub Release, retaining `private: true` and the existing package/provider/update
+identities. Earlier no-push/no-release notes below describe the development
+boundary. No npm publication, global host upgrade or real-user profile install
+is authorized by this release work.
+
+Package and lockfile root versions are `0.6.0`. Runtime/client code is unchanged
+from the accepted candidate; update-check fixtures now read the running package
+version instead of assuming `0.5.7`. The complete versioned suite passed 140 tests,
+including lint, the 187247-byte client consistency check and 26 production route
+authentication checks. The npm host `next` and `latest` tags were rechecked as
+`0.2.1-rc.2`. No GitHub Actions workflow is configured in this repository; local
+checks are not described as CI. Exact release commit, archive identity, native
+installation/call results and remote verification belong in the release's
+`RELEASE-VALIDATION.md` asset.
+
+## Development Linux acceptance (2026-10-19)
 
 The user confirmed: “当前环境验收通过即可” (acceptance in the current environment
 is sufficient). The completion boundary is therefore the existing Linux x86_64
