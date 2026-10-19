@@ -67,9 +67,24 @@ fake credentials and the local mock. No global install or real channel call:
   These migration profiles extracted the tarball and linked the public native
   peers; the main-profile hot updates above used the real host installer.
 
-Final whole-plan requirement coverage, real Cline search-channel acceptance and
-Desktop acceptance remain open. CLI Web and mock evidence do not establish those
-platform/channel results. No push, release, tag or publication occurred.
+Final CLI integration above `9f15bfe` compared all 69 tracked runtime/client
+files against the installed production archive P: no differences. In an existing
+native conversation, `/cline stats` and `/cline telemetry` each rendered the
+persisted 41-request summary, measurement sample counts, unknown cache-write usage
+and saved storage status. Earlier account/use/ping outcomes remained replayable.
+The final archive's native model → web_search → local mock → model tool-result
+chain returned the actual fixture source and completed with 96 measured tokens;
+the profile reached 44 requests including an earlier single-call fixture run.
+The mock had to be restarted to load its current tool-call fixture code; the
+earlier one-call completion is not counted as search-tool acceptance.
+
+The synchronization plan now maps each P1–P8 requirement group to its evidence
+and remaining acceptance. Real Cline search-channel and Desktop acceptance remain
+open. Common system/user desktop-entry locations had no matching app entry; that
+does not prove Desktop is absent. CLI Web and mock evidence do not establish
+those platform/channel results. Whole-host shutdown waiting remains unproven,
+separately from successful component unload. No push, release, tag or publication
+occurred.
 
 ## Native migration repairs (2026-10-19)
 
