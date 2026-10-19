@@ -54,3 +54,20 @@ test('client JSON errors propagate and HTTP error pages keep their status', asyn
   assert.equal(response.status, 403)
   assert.equal((await response.json()).error, 'HTTP 403')
 })
+
+test('CSV responses retain body deadlines and structured HTTP failures', async () => {
+  const server = createServer((req, res) => {
+    if (req.url === '/stalled') { res.writeHead(200, { 'Content-Type': 'text/csv' }); res.write('a,'); return }
+    if (req.url === '/error') { res.writeHead(503); res.end('{"error":"Storage unavailable"}'); return }
+    res.writeHead(200, { 'Content-Type': 'text/csv' }); res.end('a,b\r\n1,2\r\n')
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${server.address().port}`
+  try {
+    assert.equal(await (await request(base, { responseType: 'text' })).text(), 'a,b\r\n1,2\r\n')
+    await assert.rejects(request(base + '/stalled', { responseType: 'text', timeoutMs: 50 }), { name: 'TimeoutError' })
+    const error = await request(base + '/error', { responseType: 'text' })
+    assert.equal(error.status, 503)
+    assert.equal((await error.json()).error, 'Storage unavailable')
+  } finally { server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)) }
+})

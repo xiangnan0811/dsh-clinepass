@@ -124,11 +124,7 @@ test('smoke chat uses the configured API', async () => {
     model: 'cline-pass/deepseek-v4-flash',
     fetchImpl: async (url) => {
       called = String(url)
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ choices: [{ message: { content: 'pong' } }], usage: {} }),
-      }
+      return new Response(JSON.stringify({ choices: [{ message: { content: 'pong' } }], usage: {} }))
     },
   })
   assert.equal(called, 'https://api.cline.bot/api/v1/chat/completions')

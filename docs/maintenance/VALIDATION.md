@@ -2,6 +2,44 @@
 
 Latest package: `dsh-clinepass@0.5.7`. The add-account label, credential name, and key stay hidden until Add account is chosen. Cancel clears those fields. A failed save stays open. The 0.5.6 behavior below still applies. 0.5.6 masks the account email on the settings card until Show email is chosen. That choice is not saved, and `/cline` stays masked. A cancellation timestamp is shown when the plan payload includes one. A plan name containing `[Internal]` is not used as the label. When more than one key is saved, the card lists the other accounts' three usage percents without writing the cache that chooses the next account after HTTP 429 or 402. Finished ClinePass streams are counted with smoke tests and `/cline test`. 0.5.5 stores an added account name before its secret, separates usage cache entries by API address and the full credential, and drops the previous plan model list when the account, API address, primary credential name, or active key changes. Replacing the active key deletes the saved plan cache. A plan read that has already started its settings write cannot put that list back. `/cline` returns `{ kind: 'success' | 'error', text }` in plain text. Extra accounts use `CLINEBOT_API_KEY_*`. A DSH turn can switch the next saved account when the finish failure is harness code `RATE_LIMIT` or `QUOTA`, or HTTP 429 or 402; that turn is not added to the session table. The local proxy, upstream context table, and upstream settings-slot registration were not adopted. Earlier notes below used the working name `dsh-clinebot-local` through `0.4.0-candidate.17`. The request budget described below as 8192 was raised to 65536 in candidate.8. The record through "Side effect to know about" is candidate.3 (`0fdb585`). Candidate.4 is `7cd2244`. Candidate.5 is the trial repair. Candidate.6 corrects the V4.1 Flash channel claim.
 
+## Persistent statistics candidate (2026-10-19)
+
+Above `29914f9`, P4 adds profile-isolated durable statistics, queries and controls.
+The [whole sync plan](UPSTREAM_SYNC_PLAN.md) stays open; remaining P2/P3 native
+acceptance, P5 surfaces/diagnostics, P6 search, P7 native updates and P8 still apply.
+
+- `npm test`: 103 passed. The generated client is 147407 bytes. All 25 plugin
+  HTTP routes pass the unauthenticated boundary check. Added tests exercise
+  concurrent writers, restart, ENOSPC/recovery, corrupt and unsupported files,
+  reset failure/archiving, measured/unknown usage, safe CSV, native cancellation,
+  captured transport identity, and account-attempt aggregates after the 100-record
+  detail limit. CSV bodies retain request deadlines and structured HTTP failures.
+- A packed candidate was installed into the existing project-local isolated
+  `sync` CLI Web profile on DSH `0.2.1-rc.2`, with only fake credentials and a
+  local mock. Native direct requests without wire usage persisted null counters,
+  despite the stock SDK emitting zero defaults. The public provider stream-event
+  observer distinguishes absence from a measured zero without modifying chunks.
+- With explicit wire usage (40 prompt, 10 cached, 8 output, 3 reasoning), direct
+  and proxy requests each stored 30 uncached input, 10 cached input and total 48.
+  Reasoning stayed inside output. A 429 on the primary account followed by success
+  on account two produced one logical request and two attempts. The failed/limited
+  attempt remained attributed to primary, independently of the final account.
+- Restarting the host retained totals and measured sample counts. The browser
+  filtered account two to one request, two associated attempts and 48 tokens.
+  Actual CSV download completed inside project scratch. The final export contains
+  separate `scope=request` and `scope=attempt` rows and no credential values.
+  `/cline stats` and `/cline test` ran through the native composer; the latter
+  recorded source `smoke`, actual credential reference and the mock's reported usage.
+- Deliberately corrupting only the isolated statistics file left the next native
+  model call successful and its measurement buffered. The settings page displayed
+  `STATS_CORRUPT`; reset archived the exact invalid bytes, cleared the statistics
+  and retained all three fake credentials, two selected models and proxy settings.
+- Screenshots were inspected in dark and light themes at 1280px. At 390px the
+  host's fixed sidebar still leaves about 101px for content: mobile usability is
+  not accepted. P5's standalone detail surface remains required. Desktop and
+  final whole-plan packed/platform acceptance remain open. No external ClinePass
+  model call, interactive profile mutation or global DSH upgrade occurred.
+
 ## Native adapter and proxy candidate (2026-10-19)
 
 The candidate above `145a425` implements per-model effort defaults, the native

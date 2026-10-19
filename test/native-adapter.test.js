@@ -12,6 +12,7 @@ import { getAllModels } from '../lib/models.js'
 import { createProxyServer } from '../lib/proxy-server.js'
 import { createNativeAdapterController } from '../lib/native-adapter-controller.js'
 import { parseConfig } from '../lib/config.js'
+import { measureStream } from '../lib/stream-failover.js'
 
 const require = createRequire(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
 const pi = require('@deepseek-ai/dsh-llm-pi-ai')
@@ -29,18 +30,21 @@ async function mock(t) {
     calls.push({ body: JSON.parse(Buffer.concat(parts).toString()), headers: req.headers })
     res.writeHead(200, { 'Content-Type': 'text/event-stream' })
     const chunk = (delta, finish_reason = null) => `data: ${JSON.stringify({ id: 'native-test', object: 'chat.completion.chunk', created: 1, model, choices: [{ index: 0, delta, finish_reason }] })}\n\n`
-    res.end(chunk({ role: 'assistant', content: 'pong' }) + chunk({}, 'stop') + 'data: [DONE]\n\n')
+    res.end(chunk({ role: 'assistant', content: 'pong' }) + chunk({}, 'stop') + `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, prompt_tokens_details: { cached_tokens: 5 }, completion_tokens_details: { reasoning_tokens: 1 } } })}\n\n` + 'data: [DONE]\n\n')
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   t.after(() => { server.closeAllConnections(); return new Promise((resolve) => server.close(resolve)) })
   return { baseUrl: `http://127.0.0.1:${server.address().port}/v1`, calls }
 }
 
-async function runtime(t, adapter) {
+async function runtime(t, adapter, observe) {
   const ctx = new Context()
   await ctx.plugin(llm.default)
   let service
-  await ctx.plugin({ name: 'cline-adapter-test', inject: ['llm'], apply(inner) { service = inner.llm; service.registerAdapter(['clinebot'], adapter) } })
+  await ctx.plugin({ name: 'cline-adapter-test', inject: ['llm'], apply(inner) {
+    service = inner.llm; service.registerAdapter(['clinebot'], adapter)
+    if (observe) inner.on('llm/stream', observe, { global: true })
+  } })
   t.after(() => ctx.fiber.dispose())
   return service
 }
@@ -59,14 +63,17 @@ test('native preparation freezes per-model defaults, preserves explicit controls
   const upstream = await mock(t)
   const state = { profile: parseConfig({ nativeProvider: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY_TEST', models: getAllModels({}) }).payload }).nativeProvider,
     overrides: [{ id: model, defaultReasoning: 'high' }] }
-  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-native-adapter', getAttachments: () => undefined, getFs: () => undefined })
+  const metadata = new WeakMap()
+  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-native-adapter', getAttachments: () => undefined, getFs: () => undefined, noteDispatch: (options, route) => metadata.set(options, route) })
   const service = await runtime(t, adapter)
   const prepared = await service.prepareCall({ provider: 'clinebot', model })
   assert.equal(prepared.config.reasoningEffort, 'high')
   assert.equal(prepared.adapterDefaults.reasoningEffort, true)
   assert.equal(Object.isFrozen(prepared.config), true)
   state.overrides = [{ id: model, defaultReasoning: 'max' }]
-  await dispatch(prepared, 'session-direct')
+  const dispatched = await dispatch(prepared, 'session-direct')
+  assert.equal(metadata.get(dispatched).wireUsage.total_tokens, 23)
+  assert.equal(metadata.get(dispatched).transport, 'direct')
   assert.equal(upstream.calls[0].body.reasoning_effort, 'high')
   assert.equal(upstream.calls[0].body.max_tokens, 65536)
   assert.equal(upstream.calls[0].headers['x-clinepass-session'], undefined)
@@ -90,8 +97,9 @@ test('native session and auxiliary metadata reach only the proxy, including with
   ] }), onRequest(record) { records.push(record) } })
   await proxy.start(); t.after(() => proxy.stop())
   const state = { profile: { ...buildProviderPayload({ baseUrl: proxy.baseUrl, apiKeyEnv: `CLINEBOT_PROXY_KEY_${proxy.port}`, models: getAllModels({}) }).payload, cacheRetention: 'none', retryPolicy: { mode: 'normal', maxRetries: 0 } }, overrides: [{ id: model, defaultReasoning: 'high' }] }
-  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => proxy.token, getAttachments: () => undefined, getFs: () => undefined })
-  const service = await runtime(t, adapter)
+  const dispatches = new WeakMap()
+  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => proxy.token, getAttachments: () => undefined, getFs: () => undefined, noteDispatch: (options, metadata) => dispatches.set(options, metadata) })
+  const service = await runtime(t, adapter, (options, next) => measureStream(next(), options, () => dispatches.get(options) || { transport: 'direct' }, () => assert.fail('proxy stream was counted twice')))
   const sessionId = '会话-native-session'
   for (let index = 0; index < 2; index++) await dispatch(await service.prepareCall({ provider: 'clinebot', model }), sessionId)
   assert.equal(records.length, 2)
@@ -103,6 +111,11 @@ test('native session and auxiliary metadata reach only the proxy, including with
   assert.equal(upstream.calls[1].headers.authorization, 'Bearer fake-one')
   assert.equal(upstream.calls[0].headers['x-clinepass-purpose'], undefined)
   assert.equal(upstream.calls[0].headers['x-clinepass-session'], undefined)
+  const held = await service.prepareCall({ provider: 'clinebot', model })
+  state.profile = { ...state.profile, baseURL: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY' }
+  const dispatched = await dispatch(held, sessionId)
+  assert.equal(dispatches.get(dispatched).transport, 'proxy')
+  assert.equal(records.length, 3)
 })
 
 test('historical image policy uses the native logged offload and survives detached replay', async (t) => {

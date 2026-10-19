@@ -61,8 +61,10 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 - Lets you pick the smoke-test model. Muse Spark uses
   `reasoning_effort: low` and a 1024-token cap so the short reply is not
   swallowed by reasoning.
-- Counts finished ClinePass streams, plugin smoke tests, and `/cline test`
-  in the session table. The table does not keep prompt text.
+- Saves request statistics per DSH profile: results, attempts, latency and
+  reported token counters. Filter by UTC date, model or account, export CSV, or
+  reset statistics from the settings card. `/cline stats` and `/cline telemetry`
+  show the same profile totals. Prompts and credential values are never stored.
 - Saves extra `CLINEBOT_API_KEY_*` accounts on the same card. The pool name is
   saved before the secret. If the secret is not stored, that new name is
   removed. A later DSH turn that gets HTTP 429 or 402 switches to the next
@@ -119,9 +121,9 @@ card. Empty override fields inherit batch defaults, then the catalog. Native
 Models edits are captured in `hostModelOverrides` and survive hiding models and
 restarts. An explicit edit or restore on this card clears the corresponding
 captured field. Per-model default effort is applied before the native request
-freezes; explicit caller choices, including Off, take precedence. Activating
-these defaults, proxy mode or historical image offload transfers only `clinebot`
-to the ClinePass native adapter. Its model parameters remain editable in Settings
+freezes; explicit caller choices, including Off, take precedence. On the next
+LLM service, only `clinebot` transfers to the ClinePass native adapter so statistics
+can observe actual provider usage. Its model parameters remain editable in Settings
 → Models. The adapter stays registered when proxy mode returns to direct mode.
 
 Proxy credentials are ephemeral references in DSH credentials. Disabling proxy
@@ -133,6 +135,21 @@ request body to 32 MiB. Edit these under Proxy and account routing. Native image
 size limits are separate; historical offload requires the host image-offload
 plugin and keeps original session attachments. See the
 [sync plan](docs/maintenance/UPSTREAM_SYNC_PLAN.md) for remaining work.
+
+Statistics use `<current profile directory>/clinepass/stats.json`, with atomic
+replacement and the host's file lock for concurrent writers. Daily/model/account
+aggregates persist; only the latest 100 individual records are retained. A request
+retried by the proxy counts once, with each upstream attempt recorded separately.
+Request/token aggregates belong to the final account; failed attempts retain their
+own account aggregates. CSV `scope=request|attempt` distinguishes those rows: do
+not add both scopes together as logical requests.
+Missing usage is unknown, cache input is disjoint from uncached input, and reasoning
+is already included in output. Counts show measured/all request samples. Latencies
+are mean completion and first-output times; non-streaming smoke tests have no TTFT.
+These are new measurements, not reconstructed history or billing estimates.
+Storage errors remain visible while model calls continue; unsaved measurements
+remain in memory. Reset clears the entire profile's statistics, including filtered
+dates, and archives a corrupt file before replacing it. Accounts and models remain.
 
 ## Develop
 

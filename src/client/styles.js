@@ -81,6 +81,7 @@
 .cb-metric b{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary)}
 .cb-metric span{font-size:11px;color:var(--dsw-alias-label-secondary)}
 .cb-table th,.cb-table td{white-space:nowrap}
+.cb-table-scroll{min-width:0;max-width:100%;overflow-x:auto}
 .cb-editor{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px;padding:4px 0 8px;min-width:0}
 .cb-editor .cb-field{margin:0}
 .cb-editor-note{grid-column:1/-1}

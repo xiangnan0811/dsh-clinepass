@@ -1,7 +1,7 @@
 // Consume the response body inside the deadline too: fetch alone only waits
 // for headers. Never turn a stalled body or malformed JSON into a success.
 async function fetchJson(url, options = {}, lifetimeSignal) {
-  const { timeoutMs = 45000, signal, ...init } = options
+  const { timeoutMs = 45000, responseType = 'json', signal, ...init } = options
   const controller = new AbortController()
   const signals = [signal, lifetimeSignal].filter(Boolean)
   const listeners = []
@@ -27,11 +27,11 @@ async function fetchJson(url, options = {}, lifetimeSignal) {
       // Error pages may be plain text. Keep the HTTP status while allowing the
       // caller to use the server's structured error when one is present.
       let data
-      try { data = JSON.parse(body) } catch {
+      try { data = responseType === 'text' && response.ok ? undefined : JSON.parse(body) } catch {
         if (response.ok) throw new Error('Invalid JSON response')
         data = { error: `HTTP ${response.status}` }
       }
-      return { ok: response.ok, status: response.status, json: async () => data }
+      return { ok: response.ok, status: response.status, json: async () => data, text: async () => body }
     })()
     return await Promise.race([operation, aborted])
   } finally {

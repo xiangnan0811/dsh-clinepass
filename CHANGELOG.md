@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+Persist profile statistics with daily/model/account aggregates, measured-sample
+counts, source and retry-attempt attribution, UTC filters, CSV export and reset.
+Use the host's profile directory, atomic replacement and cross-process file lock.
+Corrupt files stay untouched until reset archives them; storage failures retain
+new measurements in memory while model calls continue. Add `/cline stats` and
+`/cline telemetry`.
+
+Observe raw usage through the native protocol's public event callback so a
+missing provider usage report stays unknown. Keep cache and uncached input
+disjoint and reasoning within output. Preserve captured transport metadata when
+settings change, preventing proxy double counting and unwanted account rotation.
+Remove invented smoke token counts and reject empty or embedded-error responses.
+
 Add an authenticated loopback proxy with session binding, model/account routes,
 measured-quota and round-robin strategies, cooldown recovery, bounded requests
 and retries only before model output. Disabling it restores direct transport

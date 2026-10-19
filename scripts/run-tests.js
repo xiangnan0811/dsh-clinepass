@@ -23,6 +23,7 @@ const files = [
   'test/session-router.test.js',
   'test/proxy.test.js',
   'test/proxy-runtime.test.js',
+  'test/statistics.test.js',
   'test/token-count.test.js',
   'test/account-pool.test.js',
   'test/stream-failover.test.js',

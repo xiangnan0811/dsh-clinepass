@@ -8,6 +8,7 @@ import { registerAuthRoutes } from '../lib/routes/auth.js'
 import { registerKeyRoutes } from '../lib/routes/keys.js'
 import { registerProxyControls } from '../lib/routes/proxy.js'
 import { registerNativeModelRoutes } from '../lib/routes/native-models.js'
+import { registerStatsRoutes } from '../lib/routes/stats.js'
 import { registerPluginUpdater } from '../lib/updater.js'
 
 function response() {
@@ -31,9 +32,9 @@ test('every plugin route refuses unauthenticated requests before reading or chan
   }
   const forbidden = () => { assert.fail('unauthenticated handler reached plugin state') }
   const deps = { live: forbidden, getSettingsApi: forbidden, syncProviderState: forbidden, triggerAutoDiscover: forbidden }
-  for (const register of [registerSettingsRoutes, registerAccountsRoutes, registerModelsRoutes, registerAuthRoutes, registerKeyRoutes, registerProxyControls, registerNativeModelRoutes]) register(ctx, deps)
+  for (const register of [registerSettingsRoutes, registerAccountsRoutes, registerModelsRoutes, registerAuthRoutes, registerKeyRoutes, registerProxyControls, registerNativeModelRoutes, registerStatsRoutes]) register(ctx, deps)
   registerPluginUpdater(ctx, { endpoint: '/dsh-clinebot/update' })
-  assert.equal(routes.length, 22)
+  assert.equal(routes.length, 25)
   const req = { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost' }, socket: { remoteAddress: '127.0.0.1' } }
   for (const code of [401, 403]) {
     rejection = code
@@ -44,7 +45,7 @@ test('every plugin route refuses unauthenticated requests before reading or chan
       assert.equal(res.body.ok, false)
     }
   }
-  assert.equal(admissions, 44)
+  assert.equal(admissions, 50)
 })
 
 test('admitted requests retain CSRF checks and legacy hosts retain their origin gate', async () => {
