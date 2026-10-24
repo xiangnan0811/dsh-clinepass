@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.7.0
+
+Add strict per-model ClinePass upstream provider pins in the model editor and
+`upstreamPins` configuration. Apply the two gateway routing spellings to native
+direct/proxy requests and all smoke tests; preserve the provider restriction
+across account retries. Streaming probes show requested and reported providers.
+Mismatched or missing routing metadata fails explicitly, including late stream
+failures without replay. Automatic routing remains the default. Local installed
+DSH adapter tests cover these paths; real ClinePass accounts remain unverified.
+
+Persist upstream observations for ordinary direct/proxy calls, probes and smoke
+tests, including failures, automatic routing and account attempts. Show the last
+reported provider in the composer and per-request details in session/profile
+history. Distinguish the configured target, attached restriction and observed
+provider; matching one response never implies future enforcement. Retain the
+100-request history limit, old unrecorded rows and strict session isolation.
+
+Preserve upstream pins and unrelated settings when queued account changes, slash
+switches, failed credential imports or plan resets overlap. Derive writes from
+current configuration at their queue turn; automatic rotation skips a newer
+manual account choice. Preserve previous plan-model ownership when clearing a
+credential whose stale discovery write was already in flight.
+
 ## 0.6.0
 
 Requires DeepSeek Harness `^0.2.1-rc.2`. This release adds the upstream feature

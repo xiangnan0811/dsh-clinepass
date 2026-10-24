@@ -24,5 +24,9 @@ function ModelProbe({ status, t }) {
     React.createElement('div', { className: 'cb-section-desc' }, t('surface.probe_hint')),
     React.createElement('select', { className: 'cb-input', value: model || models[0]?.id || '', disabled: busy, 'aria-label': t('surface.probe_model'), onChange: (event) => setModel(event.target.value) }, models.map((row) => React.createElement('option', { value: row.id, key: row.id }, row.name))),
     React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn', disabled: busy || !models.length, onClick: run }, t('surface.probe_run')), busy ? React.createElement('button', { type: 'button', className: 'cb-btn', onClick: () => controller.current?.abort() }, t('surface.cancel')) : null),
-    result ? React.createElement('div', { className: result.ok ? 'cb-alert-ok' : 'cb-alert-bad', role: 'status' }, result.ok ? t('surface.probe_result', { ttft: result.ttftMs, total: result.totalMs }) : t('surface.probe_error', { error: result.error })) : null)
+    result ? React.createElement('div', { className: result.ok ? 'cb-alert-ok' : 'cb-alert-bad', role: 'status' },
+      React.createElement('div', null, result.ok ? t('surface.probe_result', { ttft: result.ttftMs, total: result.totalMs }) : t('surface.probe_error', { error: result.error })),
+      React.createElement(UpstreamObservation, { record: result, t }),
+      result.error === 'UPSTREAM_PIN_UNVERIFIED' ? React.createElement('div', null, t('pin.unverified')) : null,
+      result.error === 'UPSTREAM_PIN_MISMATCH' ? React.createElement('div', null, t('pin.mismatch')) : null) : null)
 }

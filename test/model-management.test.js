@@ -12,6 +12,19 @@ import { preserveHostModelEdits, retainedHostFields, hostFieldsToReset, captureH
 
 const id = 'cline-pass/deepseek-v4.1-flash'
 
+test('model pin edits retain other pins, survive parse/restart and reject invalid configuration', () => {
+  const other = 'cline-pass/glm-5.2'
+  const cfg = Config({ upstreamPins: [{ model: other, provider: 'zai' }] })
+  const next = applyModelManagement(cfg, { upstreamPin: { model: id, provider: 'deepseek' } })
+  const restored = Config(JSON.parse(JSON.stringify(next)))
+  assert.deepEqual(publicConfig(restored).upstreamPins, [{ model: other, provider: 'zai' }, { model: id, provider: 'deepseek' }])
+  assert.deepEqual(applyModelManagement(restored, { upstreamPin: { model: id, provider: '' } }).upstreamPins, cfg.upstreamPins)
+  assert.throws(() => applyModelManagement(cfg, { upstreamPin: { model: id, provider: 'DeepSeek please' } }), /provider ID/)
+  assert.throws(() => Config({ upstreamPins: [{ model: id, provider: '' }] }), /provider ID/)
+  assert.throws(() => Config({ upstreamPins: [{ model: id, provider: 'deepseek' }, { model: id, provider: 'baseten' }] }), /one upstream pin/)
+  assert.throws(() => applyModelManagement(cfg, { upstreamPin: { model: 'missing', provider: 'deepseek' } }), /Model not found/)
+})
+
 test('parsed native profiles and captured model values can be parsed again without mutating the source', () => {
   const original = Config({
     nativeProvider: buildProviderPayload({ baseUrl: 'https://example.test/v1', apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload,

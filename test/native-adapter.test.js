@@ -25,13 +25,18 @@ const protocol = await import(pathToFileURL(join(dshLib, '../node_modules/@earen
 const deps = { ...pi, ...llm, ...protocol }
 const model = 'cline-pass/deepseek-v4.1-flash'
 
-async function mock(t, { reportUsage = true } = {}) {
+async function mock(t, { reportUsage = true, provider, lateProvider = false, directProvider = false } = {}) {
   const calls = []
   const server = http.createServer(async (req, res) => {
     const parts = []; for await (const part of req) parts.push(part)
     calls.push({ body: JSON.parse(Buffer.concat(parts).toString()), headers: req.headers })
     res.writeHead(200, { 'Content-Type': 'text/event-stream' })
-    const chunk = (delta, finish_reason = null) => `data: ${JSON.stringify({ id: 'native-test', object: 'chat.completion.chunk', created: 1, model, choices: [{ index: 0, delta, finish_reason }] })}\n\n`
+    const chunk = (delta, finish_reason = null) => {
+      const report = provider && (lateProvider ? finish_reason !== null : !!delta.content)
+      return `data: ${JSON.stringify({ id: 'native-test', object: 'chat.completion.chunk', created: 1, model,
+        ...(report && directProvider ? { provider } : {}),
+        choices: [{ index: 0, delta: { ...delta, ...(report && !directProvider ? { provider_metadata: { gateway: { routing: { finalProvider: provider } } } } : {}) }, finish_reason }] })}\n\n`
+    }
     res.end(chunk({ role: 'assistant', content: 'pong' }) + chunk({}, 'stop') + (reportUsage ? `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, prompt_tokens_details: { cached_tokens: 5 }, completion_tokens_details: { reasoning_tokens: 1 } } })}\n\n` : '') + 'data: [DONE]\n\n')
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -89,6 +94,59 @@ test('native preparation freezes per-model defaults, preserves explicit controls
   assert.equal(upstream.calls[2].body.reasoning_effort, undefined)
 })
 
+test('native pins reach the wire, survive preparation and report actual upstream through the probe', async (t) => {
+  const upstream = await mock(t, { provider: 'deepseek', lateProvider: true })
+  const pins = [{ model, provider: 'deepseek' }]
+  const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [], upstreamPins: pins }
+  const dispatchMetadata = new WeakMap(), probeRequests = new WeakSet()
+  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-pin-key', getAttachments: () => undefined, getFs: () => undefined,
+    noteDispatch: (options, metadata) => dispatchMetadata.set(options, metadata) })
+  const service = await runtime(t, adapter)
+  const prepared = await service.prepareCall({ provider: 'clinebot', model, reasoningEffort: 'high', maxTokens: 1234 })
+  state.upstreamPins = [{ model, provider: 'baseten' }]
+  await dispatch(prepared, 'pinned-session')
+  assert.deepEqual(upstream.calls[0].body.provider, { only: ['deepseek'], order: ['deepseek'], allow_fallbacks: false })
+  assert.deepEqual(upstream.calls[0].body.providerOptions.gateway, { only: ['deepseek'], order: ['deepseek'] })
+  assert.equal(upstream.calls[0].body.reasoning_effort, 'high')
+  assert.equal(upstream.calls[0].body.max_tokens, 1234)
+  state.upstreamPins = pins
+  const probe = createModelProbe({ inject(_deps, callback) { callback({ llm: service }) } }, { live: () => ({}), probeRequests, dispatchMetadata })
+  const result = await probe.run(model)
+  assert.equal(result.ok, true)
+  assert.equal(result.upstreamPin, 'deepseek')
+  assert.equal(result.upstream, 'deepseek')
+  assert.equal(result.upstreamPinAttached, true)
+  assert.equal(result.upstreamPinStatus, 'matched')
+  await probe.close()
+})
+
+test('native strict pins fail on ignored, absent and late mismatched routing without replay', async (t) => {
+  for (const scenario of [
+    { provider: 'openai_compatible_private', code: 'UPSTREAM_PIN_MISMATCH' },
+    { provider: 'baseten', lateProvider: true, code: 'UPSTREAM_PIN_MISMATCH' },
+    { code: 'UPSTREAM_PIN_UNVERIFIED' },
+  ]) await t.test(scenario.code + (scenario.provider || ''), async (t) => {
+    const upstream = await mock(t, scenario)
+    const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [], upstreamPins: [{ model, provider: 'deepseek' }] }
+    const metadata = new WeakMap(), records = []
+    const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-key', getAttachments: () => undefined, getFs: () => undefined,
+      noteDispatch: (options, value) => metadata.set(options, value) })
+    const service = await runtime(t, adapter, (options, next) => measureStream(next(), options, () => metadata.get(options), (record) => records.push(record)))
+    const prepared = await service.prepareCall({ provider: 'clinebot', model })
+    const chunks = await Array.fromAsync(prepared.stream({ ...prepared.config, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
+    assert.equal(chunks.at(-1).type, 'finish')
+    assert.equal(chunks.at(-1).reason.kind, 'error')
+    assert.equal(chunks.at(-1).reason.failure.code, scenario.code)
+    assert.equal(upstream.calls.length, 1)
+    assert.equal(records.length, 1)
+    assert.equal(records[0].ok, false)
+    assert.equal(records[0].error.code, scenario.code)
+    assert.equal(records[0].upstreamPin, 'deepseek')
+    assert.equal(records[0].upstreamPinAttached, true)
+    assert.equal(records[0].upstream, scenario.provider || '')
+  })
+})
+
 test('native session and auxiliary metadata reach only the proxy, including with cache disabled', async (t) => {
   const upstream = await mock(t)
   const records = []
@@ -118,6 +176,42 @@ test('native session and auxiliary metadata reach only the proxy, including with
   const dispatched = await dispatch(held, sessionId)
   assert.equal(dispatches.get(dispatched).transport, 'proxy')
   assert.equal(records.length, 3)
+})
+
+test('native proxy probes preserve pin failures before and after first output', async (t) => {
+  for (const scenario of [
+    { provider: 'deepseek', lateProvider: true },
+    { provider: 'baseten', configuredProvider: 'baseten', lateProvider: true },
+    { provider: 'baseten', code: 'UPSTREAM_PIN_MISMATCH' },
+    { provider: 'baseten', lateProvider: true, code: 'UPSTREAM_PIN_MISMATCH' },
+    { code: 'UPSTREAM_PIN_UNVERIFIED' },
+  ]) await t.test(`${scenario.provider}/${scenario.lateProvider}`, async (t) => {
+    const upstream = await mock(t, scenario)
+    const pins = [{ model, provider: 'deepseek' }]
+    const records = [], dispatchMetadata = new WeakMap(), probeRequests = new WeakSet()
+    const proxyPins = scenario.configuredProvider ? [{ model, provider: scenario.configuredProvider }] : pins
+    const proxy = createProxyServer({ snapshot: async () => ({ config: { enabled: true, proxyEnabled: true, baseUrl: upstream.baseUrl, upstreamPins: proxyPins },
+      accounts: [{ apiKeyEnv: 'CLINEBOT_API_KEY', present: true, value: 'fake-key' }] }), onRequest: (record) => records.push(record) })
+    await proxy.start(); t.after(() => proxy.stop())
+    const state = { profile: { ...buildProviderPayload({ baseUrl: proxy.baseUrl, apiKeyEnv: `CLINEBOT_PROXY_KEY_${proxy.port}`, models: getAllModels({}) }).payload, retryPolicy: { mode: 'normal', maxRetries: 0 } }, overrides: [], upstreamPins: pins }
+    const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => proxy.token, getAttachments: () => undefined, getFs: () => undefined,
+      noteDispatch: (options, metadata) => dispatchMetadata.set(options, metadata) })
+    const service = await runtime(t, adapter)
+    const probe = createModelProbe({ inject(_deps, callback) { callback({ llm: service }) } }, { live: () => ({}), probeRequests, dispatchMetadata })
+    const result = await probe.run(model)
+    assert.equal(result.ok, !scenario.code)
+    assert.equal(result.error, scenario.code)
+    assert.equal(result.upstream, scenario.provider || '')
+    assert.equal(result.upstreamPin, scenario.configuredProvider || 'deepseek')
+    assert.equal(result.upstreamPinAttached, true)
+    assert.equal(result.upstreamPinStatus, scenario.code === 'UPSTREAM_PIN_MISMATCH' ? 'mismatch' : scenario.code ? 'unverified' : 'matched')
+    assert.equal(upstream.calls.length, 1)
+    assert.equal(records[0].ok, !scenario.code)
+    assert.equal(records[0].upstreamPinAttached, true)
+    assert.equal(records[0].attempts[0].upstream, scenario.provider || '')
+    assert.deepEqual(upstream.calls[0].body.provider.only, [scenario.configuredProvider || 'deepseek'])
+    await probe.close()
+  })
 })
 
 test('historical image policy uses the native logged offload and survives detached replay', async (t) => {

@@ -6,6 +6,8 @@ import { pathToFileURL } from 'node:url'
 import test from 'node:test'
 import { getAllModels } from '../lib/models.js'
 import { buildProviderPayload } from '../lib/provider-payload.js'
+import { smokeChat } from '../lib/cline-client.js'
+import { applyUpstreamPin, reportedUpstreams, upstreamPinFailure } from '../lib/upstream-pin.js'
 
 const dshLib = dirname(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
 const piEntry = join(dshLib, '../node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js')
@@ -102,4 +104,34 @@ test('a non-reasoning catalog model does not send reasoning fields', async () =>
   assert.equal(params.reasoning_effort, undefined)
   assert.equal(params.thinking, undefined)
   assert.equal(params.max_tokens === 65536 || params.max_completion_tokens === 65536, true)
+})
+
+test('pin metadata uses the actual final provider, never content or provider attempts', () => {
+  assert.deepEqual(reportedUpstreams({ choices: [{ delta: { content: 'deepseek', provider_metadata: { gateway: { routing: { providerAttempts: ['deepseek'] } } } } }] }), [])
+  assert.deepEqual(reportedUpstreams({ provider: 'Cline', choices: [{ delta: { provider_metadata: { gateway: { routing: { finalProvider: 'deepseek' } } } } }] }), ['deepseek'])
+  assert.deepEqual(reportedUpstreams({ data: { provider: 'DeepSeek', choices: [] } }), ['DeepSeek'])
+  assert.equal(upstreamPinFailure('z-ai', 'Z.AI'), null)
+  const body = { messages: [], providerOptions: { other: { keep: true } } }
+  assert.equal(applyUpstreamPin(body, ''), body)
+  const pinned = applyUpstreamPin(body, 'zai')
+  assert.deepEqual(pinned.provider.only, ['z-ai'])
+  assert.deepEqual(pinned.providerOptions.gateway.only, ['zai'])
+  assert.deepEqual(pinned.providerOptions.other, { keep: true })
+})
+
+test('smoke requests apply model pins and require matching structured provider metadata', async () => {
+  for (const provider of ['deepseek', 'openai_compatible_private', undefined]) {
+    let sent
+    const result = await smokeChat('https://example.test/v1', 'fake-key', { model: 'cline-pass/deepseek-v4.1-flash', upstreamPin: 'deepseek',
+      fetchImpl: async (_url, options) => {
+        sent = JSON.parse(options.body)
+        return new Response(JSON.stringify({ data: { provider, choices: [{ message: { content: 'pong' } }], usage: { prompt_tokens: 8, completion_tokens: 2 } } }))
+      },
+    })
+    assert.deepEqual(sent.providerOptions.gateway.only, ['deepseek'])
+    assert.deepEqual(sent.provider.only, ['deepseek'])
+    assert.equal(result.ok, provider === 'deepseek')
+    if (provider !== 'deepseek') assert.equal(result.errorCode, provider ? 'UPSTREAM_PIN_MISMATCH' : 'UPSTREAM_PIN_UNVERIFIED')
+    assert.equal(result.usage.prompt_tokens, 8)
+  }
 })

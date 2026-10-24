@@ -1,5 +1,58 @@
 # Validation record
 
+## 0.7.0 strict upstream pins (2026-10-24)
+
+`npm test` passed 174 tests, including client consistency (199893 bytes), lint,
+route authentication and the installed Linux DSH native adapter. New coverage
+exercises per-model persistence/validation, direct preparation snapshots, both
+wire routing forms, actual-provider parsing, proxy ingress configuration,
+account retry, smoke tests, missing/mismatched/late metadata, typed native errors
+and failed-request metering without replay. Routing observations also persist
+through restart beside legacy records; session changes cancel obsolete reads and
+cannot show another session's provider. Package dry-run includes the new
+runtime module under `lib/` and excludes project-local scratch.
+
+Browser acceptance used the production model editor and streaming probe components,
+production settings/probe routes and the installed native DSH adapter with a local
+SSE gateway. At 390px Chinese and 1280px English, save/reload, invalid ID rejection,
+matching/mismatched/missing provider results and restoring automatic routing
+worked; document width matched the viewport. This is a component/API/native-adapter
+fixture, not a full installed Web/Desktop session. No real ClinePass account was
+called; account eligibility and service-side routing remain unverified. Late
+metadata failures cannot undo output or costs already incurred.
+
+Follow-up ordinary-chat browser acceptance used the same stable model ID through
+the installed native adapter, production metering/store/stats routes and production
+composer/history components. The local gateway returned matching `deepseek`, ignored
+the restriction with `openai-compatible-private`, omitted provider metadata, and
+returned `baseten` in automatic mode. Composer and retained request records showed
+the corresponding distinct observations. Switching to an empty second session
+showed no retained record. Chinese 390px and English 1280px layouts had no page
+overflow. Native host modal/session UI integration and real ClinePass behavior are
+not claimed by this component/API fixture.
+
+Independent release review found a P1 stale full-configuration replacement in
+queued account and plan-clearing writers. Account switch/delete, slash switching,
+automatic rotation, failed-import rollback, credential/catalog clearing and the
+replace-only discovery fallback now derive from the queue's current state. Queue
+interleaving regressions preserve a successful pin save; a newer manual account
+choice supersedes automatic rotation. The existing in-flight plan-clear regression
+also retains prior discovered-model ownership while preserving unrelated settings.
+
+The `0.7.0` npm archive was installed with `dsh plugin --profile release add` into
+a newly created project-local Linux Web profile on DSH `0.2.1-rc.2`. Authenticated
+production HTTP routes and the installed plugin passed six native probe scenarios:
+direct/proxy × matching `deepseek`, mismatching `openai-compatible-private`, and
+missing provider metadata. Wire requests carried both restrictions. Automatic
+routing reported `baseten`; concurrent pin/account saves preserved the pin. A
+second real host boot retained the account, pin and all seven request records.
+The stable model ID remained `cline-pass/deepseek-v4.1-flash`. Only fixture keys
+and a local gateway were used. This extends native installed-package/API evidence;
+the browser UI evidence above remains a component fixture. Desktop and live
+ClinePass account/billing acceptance remain unverified. Independent repair review
+closed F1 without another actionable finding. No CI workflow is configured in
+the release repository; local checks are not represented as CI.
+
 ## 0.6.0 release preparation (2026-10-19)
 
 The user separately authorized completing the release after development

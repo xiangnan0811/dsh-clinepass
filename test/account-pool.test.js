@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Readable } from 'node:stream'
+import { parseConfig } from '../lib/config.js'
+import { enqueuePlanWrite, planWritesPending } from '../lib/plan-write.js'
+import { registerModelsRoutes } from '../lib/routes/models.js'
+import { registerAccountsRoutes } from '../lib/routes/accounts.js'
+import { registerSlashCommand } from '../lib/slash-command.js'
 import {
   allocateAccountEnv,
   dropAccount,
@@ -14,6 +20,77 @@ import {
   commitAddedAccount,
   getLastRotation,
 } from '../lib/account-pool.js'
+
+const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
+async function pendingWrites(count) {
+  for (let i = 0; i < 50 && planWritesPending() < count; i++) await new Promise((resolve) => setImmediate(resolve))
+  assert.ok(planWritesPending() >= count, `expected ${count} queued writes`)
+}
+function post(route, body) {
+  const req = Readable.from([Buffer.from(JSON.stringify(body))])
+  Object.assign(req, { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost' }, socket: { remoteAddress: '127.0.0.1' } })
+  const res = { writeHead(status) { this.status = status }, end(value) { this.body = JSON.parse(value) } }
+  return route.handler(req, res).then(() => res)
+}
+
+test('queued pin saves survive HTTP account switch/delete and slash account switch', async (t) => {
+  for (const action of ['switch', 'delete', 'slash']) await t.test(action, async () => {
+    let cfg = parseConfig({ accounts: [{ apiKeyEnv: 'CLINEBOT_API_KEY_2', label: 'Two' }] })
+    const routes = new Map(), settings = { replace: async (next) => { cfg = next } }
+    const deps = { live: () => cfg, getSettingsApi: () => settings, syncProviderState: async () => ({ ok: true }) }
+    const ctx = { effect: fn => fn(), webServer: { register(route) { routes.set(route.path, route); return () => {} } } }
+    registerModelsRoutes(ctx, deps); registerAccountsRoutes(ctx, deps)
+    let command
+    registerSlashCommand({ inject(_names, callback) { callback({ commands: { register(value) { command = value; return () => {} } } }) } }, deps)
+    const gate = deferred(), blocker = enqueuePlanWrite(() => gate.promise)
+    const model = 'cline-pass/deepseek-v4.1-flash'
+    const pin = post(routes.get('/dsh-clinebot/models/toggle'), { upstreamPin: { model, provider: 'deepseek' } })
+    await pendingWrites(2)
+    const account = action === 'slash' ? command.handler({ rawInput: 'use CLINEBOT_API_KEY_2' })
+      : post(routes.get(`/dsh-clinebot/accounts/${action === 'delete' ? 'delete' : 'active'}`), action === 'delete' ? { apiKeyEnv: 'CLINEBOT_API_KEY_2' } : { account: 'CLINEBOT_API_KEY_2' })
+    try { await pendingWrites(3) } finally { gate.resolve() }
+    const [saved, changed] = await Promise.all([pin, account, blocker])
+    assert.equal(saved.status, 200)
+    assert.equal(action === 'slash' ? changed.kind : changed.status, action === 'slash' ? 'success' : 200)
+    assert.deepEqual(cfg.upstreamPins, [{ model, provider: 'deepseek' }])
+    assert.equal(action === 'delete' ? cfg.accounts.length : cfg.activeAccount, action === 'delete' ? 0 : 'CLINEBOT_API_KEY_2')
+  })
+})
+
+test('rotation rebases unrelated pin writes and skips a newer manual account choice', async (t) => {
+  for (const manual of [false, true]) await t.test(String(manual), async () => {
+    let cfg = parseConfig({ accounts: [{ apiKeyEnv: 'CLINEBOT_API_KEY_2' }, { apiKeyEnv: 'CLINEBOT_API_KEY_3' }] })
+    const entered = deferred(), resolveKeys = deferred()
+    const ctx = { credentials: { async resolve() { entered.resolve(); await resolveKeys.promise; return { value: 'fake-rotation-key' } } } }
+    let writes = 0
+    const rotation = rotateToNextAccount(ctx, cfg, 'stream_429', { replace: async next => { writes++; cfg = next } }, () => cfg)
+    await entered.promise
+    cfg = { ...cfg, upstreamPins: [{ model: 'cline-pass/deepseek-v4.1-flash', provider: 'deepseek' }], ...(manual ? { activeAccount: 'CLINEBOT_API_KEY_3' } : {}) }
+    resolveKeys.resolve()
+    const outcome = await rotation
+    assert.equal(outcome.rotated, !manual)
+    assert.equal(writes, manual ? 0 : 1)
+    assert.equal(cfg.upstreamPins[0].provider, 'deepseek')
+    if (manual) assert.equal(cfg.activeAccount, 'CLINEBOT_API_KEY_3')
+  })
+})
+
+test('failed secret rollback derives from the queue head and preserves a queued pin save', async () => {
+  let cfg = parseConfig({})
+  const secret = deferred(), entered = deferred()
+  const add = commitAddedAccount({ previous: cfg, added: upsertAccount(cfg, { label: 'New' }), readFresh: () => cfg,
+    replace: async next => { cfg = next }, saveSecret: async () => { entered.resolve(); await secret.promise } })
+  await entered.promise
+  const gate = deferred(), blocker = enqueuePlanWrite(() => gate.promise)
+  const pin = enqueuePlanWrite(() => { cfg = { ...cfg, upstreamPins: [{ model: 'cline-pass/deepseek-v4.1-flash', provider: 'deepseek' }] } })
+  secret.reject(new Error('fixture secret write failed'))
+  try { await pendingWrites(3) } finally { gate.resolve() }
+  const [outcome] = await Promise.all([add, blocker, pin])
+  assert.equal(outcome.ok, false)
+  assert.equal(outcome.partial, false)
+  assert.equal(cfg.accounts.length, 0)
+  assert.equal(cfg.upstreamPins[0].provider, 'deepseek')
+})
 
 test('concurrent automatic account imports allocate distinct names in the write queue', async () => {
   let cfg = { accounts: [], apiKeyEnv: 'CLINEBOT_API_KEY', defaultModel: 'keep-me' }

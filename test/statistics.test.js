@@ -33,6 +33,45 @@ test('usage counters preserve unknowns, subtract cache hits and never add reason
   assert.doesNotMatch(JSON.stringify(record), /PRIVATE|DO_NOT_STORE/)
 })
 
+test('routing observations distinguish actual responses from settings and absent evidence', () => {
+  for (const [routing, expected] of [
+    [{ upstreamPin: 'deepseek', upstream: 'DeepSeek', upstreamPinAttached: true }, 'matched'],
+    [{ upstreamPin: 'deepseek', upstream: 'openai-compatible-private', upstreamPinAttached: true }, 'mismatch'],
+    [{ upstreamPin: 'deepseek', upstream: '', upstreamPinAttached: true }, 'unverified'],
+    [{ upstreamPin: 'deepseek', upstream: '', upstreamPinAttached: false }, 'not-attached'],
+    [{ upstreamPin: '', upstream: 'baseten', upstreamPinAttached: false }, 'automatic'],
+    [{}, 'unrecorded'],
+  ]) {
+    const row = normalizeRequest(event({ ...routing, messages: ['SECRET'], apiKey: 'SECRET' }))
+    assert.equal(row.upstreamPinStatus, expected)
+    assert.equal(row.attempts[0].upstreamPinStatus, expected)
+    assert.equal(row.upstream, routing.upstream || '')
+    assert.equal(row.upstreamPin, routing.upstreamPin ?? null)
+    assert.doesNotMatch(JSON.stringify(row), /SECRET/)
+  }
+})
+
+test('successful, ignored, missing and automatic upstream records survive restart beside legacy data', async (t) => {
+  const { file } = await fixture(t)
+  const store = createStatsStore(file)
+  await store.record(event({ upstreamPin: 'deepseek', upstream: 'deepseek', upstreamPinAttached: true }))
+  await store.record(event({ ok: false, upstreamPin: 'deepseek', upstream: 'openai-compatible-private', upstreamPinAttached: true }))
+  await store.record(event({ ok: false, upstreamPin: 'deepseek', upstream: '', upstreamPinAttached: true }))
+  await store.record(event({ upstreamPin: '', upstream: 'fireworks', upstreamPinAttached: false }))
+  const data = JSON.parse(await readFile(file, 'utf8'))
+  const legacy = structuredClone(data.recent[0])
+  for (const field of ['upstream', 'upstreamPin', 'upstreamPinAttached', 'upstreamPinStatus']) delete legacy[field]
+  legacy.id = 'legacy-request'
+  data.recent.unshift(legacy)
+  await writeFile(file, JSON.stringify(data))
+  const restored = await createStatsStore(file).query()
+  assert.deepEqual(restored.recent.slice(0, 4).map((row) => row.upstreamPinStatus), ['automatic', 'unverified', 'mismatch', 'matched'])
+  assert.equal(restored.recent[2].ok, false)
+  assert.equal(restored.recent[2].upstream, 'openai-compatible-private')
+  assert.equal(restored.recent[4].upstreamPinStatus, undefined)
+  assert.equal(restored.summary.requests, 4)
+})
+
 test('smoke outcomes keep absent usage unknown and reject embedded or empty successes', async () => {
   const invoke = (body, status = 200) => smokeChat('https://example.test/v1', 'fake-test-key', { fetchImpl: async () => new Response(body, { status }) })
   const missing = await invoke('{"choices":[{"message":{"content":"pong"}}]}')

@@ -149,12 +149,22 @@ function ComposerUsageContent(props) {
   const projection = props.useProjection('clinepassUsage')
   const result = sessionEstimate(projection, preferences)
   const [open, setOpen] = React.useState(false)
+  const [routingRefresh, setRoutingRefresh] = React.useState(0)
+  const routing = useRecentRouting(props.sessionId, projection, `${open}:${routingRefresh}`)
+  const latest = routing.records[0]
+  const upstreamText = latest ? t('routing.last_response', { provider: latest.upstream || t('surface.unknown') })
+    : routing.loading ? t('surface.loading') : routing.error ? t('routing.unavailable') : t('routing.empty')
   const cost = result.amount === null ? t('surface.cost_unknown') : `${preferences.costCurrency || 'USD'} ${result.amount > 0 && result.amount < 0.000001 ? '< 0.000001' : result.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}`
   return React.createElement('div', { className: 'cb-composer-usage' },
     React.createElement('button', { type: 'button', className: 'cb-composer-button', 'aria-expanded': open, onClick: () => setOpen((value) => !value) },
-      `ClinePass · ${result.calls === null ? t('surface.loading') : t('surface.calls', { count: result.calls })} · ${result.tokens === null ? t('surface.unknown') : result.tokens.toLocaleString() + ' tok'}`),
+      `ClinePass · ${result.calls === null ? t('surface.loading') : t('surface.calls', { count: result.calls })} · ${result.tokens === null ? t('surface.unknown') : result.tokens.toLocaleString() + ' tok'} · ${upstreamText}${latest ? ' · ' + t(`routing.state_${latest.upstreamPinStatus || 'unrecorded'}`) : ''}`),
     open ? React.createElement(NativeModal, { open: true, onClose: () => setOpen(false), title: t('surface.session_title'), className: 'cb-session-modal', closeLabel: t('surface.close'), children:
       React.createElement('div', { className: 'cb-page cb-session-detail' }, React.createElement('p', null, t('surface.session_hint')),
+        React.createElement('div', null,
+          React.createElement('p', { className: 'cb-section-desc' }, t('routing.session_hint')),
+          React.createElement('button', { type: 'button', className: 'cb-btn', onClick: () => setRoutingRefresh((value) => value + 1) }, t('routing.refresh')),
+          routing.error ? React.createElement('p', { className: 'cb-alert-bad' }, routing.error) : null,
+          routing.loading ? React.createElement('p', null, t('surface.loading')) : React.createElement(RoutingHistory, { records: routing.records, t })),
         React.createElement('div', { className: 'cb-cost-estimate' }, React.createElement('span', null, t('surface.estimated_cost')), React.createElement('strong', null, cost)),
         result.reason ? React.createElement('p', null, t(`surface.${result.reason}`)) : null,
         React.createElement('p', null, t('surface.cost_hint', { currency: preferences.costCurrency || 'USD' })),

@@ -76,6 +76,7 @@ function StatsSection({ status, t }) {
       React.createElement('label', { className: 'cb-field' }, t('durable.group'), React.createElement('select', { className: 'cb-input', value: group, onChange: (event) => setGroup(event.target.value) }, ['day', 'model', 'account'].map((value) => React.createElement('option', { key: value, value }, t(`durable.${value}`))))),
       React.createElement('div', { className: 'cb-table-scroll' }, React.createElement('table', { className: 'cb-table' },
         React.createElement('thead', null, React.createElement('tr', null, [t(`durable.${group}`), t('durable.request_count'), t('durable.totalTokens')].map((value) => React.createElement('th', { key: value }, value)))),
-        React.createElement('tbody', null, data.grouped[group].map((row) => React.createElement('tr', { key: row.value }, React.createElement('td', null, row.value), React.createElement('td', { className: 'cb-num' }, row.totals.requests), React.createElement('td', { className: 'cb-num' }, measured(row.totals, 'totalTokens')))))))
+        React.createElement('tbody', null, data.grouped[group].map((row) => React.createElement('tr', { key: row.value }, React.createElement('td', null, row.value), React.createElement('td', { className: 'cb-num' }, row.totals.requests), React.createElement('td', { className: 'cb-num' }, measured(row.totals, 'totalTokens'))))))),
+      React.createElement(RoutingHistory, { records: data.recent, t })
     ) : React.createElement('div', { className: 'cb-section-desc' }, t('durable.loading')))
 }

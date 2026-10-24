@@ -64,6 +64,34 @@ test('cost estimates require explicit rates and complete per-model measurements,
   assert.equal(sessionEstimate(partial, rates).tokens, null)
 })
 
+test('composer routing records isolate sessions and ignore cancelled late responses', async () => {
+  let state, effect
+  const timers = [], requests = []
+  const request = (_url, options) => new Promise((resolve) => requests.push({ resolve, signal: options.signal }))
+  const hook = vm.runInNewContext(readFileSync(new URL('../src/client/components/upstream-observation.js', import.meta.url), 'utf8') + '\nuseRecentRouting', {
+    React: { useState(initial) { state ??= initial; return [state, (value) => { state = value }] }, useEffect(callback) { effect = callback } },
+    useClientRequests: () => request, ROUTE_PREFIX: '/dsh-clinebot', AbortController,
+    setTimeout(callback) { timers.push(callback); return timers.length }, clearTimeout() {},
+  })
+  assert.equal(hook('session-a', {}, false).records.length, 0)
+  const cleanupA = effect(), taskA = timers.at(-1)()
+  hook('session-b', {}, false)
+  cleanupA()
+  const cleanupB = effect(), taskB = timers.at(-1)()
+  assert.equal(requests[0].signal.aborted, true)
+  requests[1].resolve({ ok: true, json: async () => ({ ok: true, recent: [
+    { id: 'a', sessionId: 'session-a', upstream: 'deepseek' }, { id: 'b', sessionId: 'session-b', upstream: 'baseten' },
+  ] }) })
+  await taskB
+  assert.equal(hook('session-b', {}, false).records[0].id, 'b')
+  requests[0].resolve({ ok: true, json: async () => ({ ok: true, recent: [{ id: 'late-a', sessionId: 'session-a', upstream: 'deepseek' }] }) })
+  await taskA
+  assert.equal(hook('session-b', {}, false).records[0].id, 'b')
+  assert.equal(hook('session-c', {}, false).records.length, 0)
+  cleanupB()
+  assert.equal(requests[1].signal.aborted, true)
+})
+
 test('reset countdown distinguishes a future reset, reset in progress, and missing time', () => {
   const reset = vm.runInNewContext(readFileSync(new URL('../src/client/progress-bar.js', import.meta.url), 'utf8') + '\nresetCountdown')
   assert.equal(reset('2026-10-19T00:01:01Z', Date.parse('2026-10-19T00:00:00Z')).time, '1m 1s')

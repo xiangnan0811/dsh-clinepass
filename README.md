@@ -14,7 +14,7 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-Version `0.6.0` requires DeepSeek Harness `^0.2.1-rc.2`.
+Version `0.7.0` requires DeepSeek Harness `^0.2.1-rc.2`.
 
 DeepSeek Harness installs plugins with pnpm. A GitHub spec is enough:
 
@@ -96,7 +96,7 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass
 id. The default smoke model is that id.
 
-Version `0.6.0` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+Version `0.7.0` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
 require DSH authentication, including reads and update checks. Open the URL
@@ -127,6 +127,7 @@ dsh-clinebot:
 | `proxyEnabled` | `false` | Authenticated loopback proxy with account retries before the first model output |
 | `accountMode` | `least-used` | Lowest measured quota first, or `round-robin`; unknown quota stays unknown |
 | `modelRoutes` | `[]` | Explicit model/account routes, ahead of manual pin, session binding and strategy |
+| `upstreamPins` | `[]` | Strict per-model ClinePass backend provider pins; separate from account selection |
 | `historyImageOffload` | `false` | Ask the native host to log and replay historical image offload decisions |
 | `historyImagesToKeep` | `2` | Historical retained images; the latest user/tool input is retained |
 | `timeoutMs` | `15000` | Usage and plan requests |
@@ -144,6 +145,50 @@ freezes; explicit caller choices, including Off, take precedence. On the next
 LLM service, only `clinebot` transfers to the ClinePass native adapter so statistics
 can observe actual provider usage. Its model parameters remain editable in Settings
 → Models. The adapter stays registered when proxy mode returns to direct mode.
+
+To keep a model on one backend, open its editor and set **Pin upstream provider**
+to an ID such as `deepseek`, then save the upstream pin. Leave it blank or choose
+**Use automatic routing** to clear it. For configuration files, use:
+
+```yaml
+upstreamPins:
+  - model: cline-pass/deepseek-v4.1-flash
+    provider: deepseek
+```
+
+Pins apply while this plugin is enabled to native direct/proxy chat, auxiliary
+model calls, streaming probes and smoke tests. Direct calls freeze the pin when
+prepared; proxy calls use the configuration captured at proxy ingress. Account
+retries retain the same provider restriction. No provider fallback is requested.
+The request carries both `provider.only` (OpenRouter) and
+`providerOptions.gateway.only` (gateway planner); `zai`/`z-ai` use each router's
+spelling. Unknown models/providers are not automatically tested or discovered.
+
+Use **Run streaming probe** to compare the requested and reported provider; it
+makes a real request. Only structured `finalProvider` or direct `provider` metadata
+counts as confirmation. A different provider fails with `UPSTREAM_PIN_MISMATCH`;
+missing metadata fails with `UPSTREAM_PIN_UNVERIFIED`. Some accounts ignore routing
+restrictions (including private routes); HTTP 200 alone does not prove a pin.
+Metadata can arrive after output has begun: a late failure ends the call without
+replay and cannot undo output or charges already incurred. Pinning cannot ensure
+cache hits or override the service's routing policy. Real ClinePass account
+acceptance remains unverified; local fixtures exercise the installed DSH adapter.
+The wire protocol follows the public findings in
+[cline-pass-switcher](https://github.com/munmunjaklin458-afk/cline-pass-switcher/tree/02538a3137a08948a94f26f17dd4aeff8c029ed1)
+and [dsh-cline-pass](https://github.com/yhshzh/dsh-cline-pass/tree/008fa828c8c2c862d909e940372b72285e3c8ba4).
+
+Ordinary chat shows the last response's reported upstream in the composer.
+Expand it for this session's retained requests; profile statistics show the last
+100 requests, including failures, automatic routing and individual account attempts.
+Each record persists the requested provider, whether a restriction was attached,
+the reported provider and its observation: matched this time, mismatch, unverified,
+not attached, automatic, or unrecorded. Attaching a restriction does not prove
+delivery; a matching response does not prove future enforcement. The model badge
+only describes the requested provider. Keys and chat content are not recorded.
+Session records refresh on settlement, opening details or manual refresh, and are
+filtered strictly to this session within those 100 profile requests. Missing
+evidence never falls back to another session or current settings. CSV remains an
+aggregate export; per-request routing is available in the stats API's `recent`.
 
 Proxy credentials are ephemeral references in DSH credentials. Disabling proxy
 mode restores the upstream address, account reference and original retry/timeout

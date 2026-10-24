@@ -25,6 +25,7 @@ const files = [
   'components/model-tools.js',
   'components/models-section.js',
   'components/native-model-editor.js',
+  'components/upstream-observation.js',
   'components/stats-section.js',
   'components/diag-section.js',
   'usage-surfaces.js',

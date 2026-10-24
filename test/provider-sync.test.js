@@ -12,13 +12,42 @@ import { parseConfig as Config } from '../lib/config.js'
 import { catalogIdentity } from '../lib/cline-client.js'
 import { clearPlanDiscovery, parsePlanIncludedModels } from '../lib/models.js'
 import { invalidateModelsDiskCache, loadModelsDiskCache, saveModelsDiskCache } from '../lib/model-cache.js'
-import { planWritesPending } from '../lib/plan-write.js'
+import { planWritesPending, enqueuePlanWrite } from '../lib/plan-write.js'
 import { upsertPiAiProvider, removePiAiProvider, noteUserWrite, currentEpoch, autoDiscoverPlanModels } from '../lib/provider-sync.js'
 import { registerSettingsRoutes } from '../lib/routes/settings.js'
 
 const require = createRequire(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
 const { Context, Service } = require('@deepseek-ai/cordis')
 const z = require('@deepseek-ai/schemastery').default || require('@deepseek-ai/schemastery')
+
+test('replace-only discovery preserves a pin write already pending before its read', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'clinebot-discovery-queue-'))
+  const oldFetch = globalThis.fetch
+  let cfg = Config({ modelsCachePath: path.join(dir, 'models.json') }), release
+  const hold = new Promise(resolve => { release = resolve })
+  const blocker = enqueuePlanWrite(() => hold)
+  noteUserWrite()
+  const pin = enqueuePlanWrite(() => { cfg = Config({ ...cfg, upstreamPins: [{ model: 'cline-pass/deepseek-v4.1-flash', provider: 'deepseek' }] }) })
+  globalThis.fetch = async url => new Response(JSON.stringify(String(url).endsWith('/usage-limits') ? { limits: [] }
+    : String(url).endsWith('/plan') ? { plan: { features: { included: ['Includes DeepSeek V4.1 Flash'] } } } : {}))
+  const credentials = { resolve: async () => ({ value: 'fake-discovery-key' }) }
+  const discovery = autoDiscoverPlanModels({ credentials, get: name => name === 'credentials' ? credentials : undefined }, {
+    live: () => cfg, getSettingsApi: () => ({ replace: async next => { cfg = next } }), syncProviderState: async () => {},
+  })
+  try {
+    for (let i = 0; i < 50 && planWritesPending() < 3; i++) await new Promise(resolve => setImmediate(resolve))
+    assert.ok(planWritesPending() >= 3)
+    release()
+    await Promise.all([blocker, pin, discovery])
+    assert.equal(cfg.planVerified, true)
+    assert.equal(cfg.upstreamPins[0].provider, 'deepseek')
+  } finally {
+    release()
+    await Promise.allSettled([blocker, pin, discovery])
+    globalThis.fetch = oldFetch
+    await rm(dir, { recursive: true, force: true })
+  }
+})
 
 function setPath(root, path, value) {
   let node = root
@@ -640,20 +669,24 @@ test('a plan read already writing settings cannot restore the list after the act
       await new Promise((resolve) => setTimeout(resolve, 10))
     }
     assert.equal(typeof releaseUpdate, 'function')
+    noteUserWrite()
+    const pinWrite = enqueuePlanWrite(() => { liveCfg = Config({ ...liveCfg, upstreamPins: [{ model: 'cline-pass/deepseek-v4.1-flash', provider: 'deepseek' }] }) })
     const saveP = postJson(saveKey, { apiKey: 'fake-key-race' })
-    for (let i = 0; i < 50 && planWritesPending() < 2; i += 1) {
+    for (let i = 0; i < 50 && planWritesPending() < 3; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 10))
     }
-    assert.ok(planWritesPending() >= 2)
+    assert.ok(planWritesPending() >= 3)
     releaseUpdate()
     const saved = await saveP
     await discoverP
+    await pinWrite
     assert.deepEqual(applied.slice(0, 2), ['discover', 'clear'])
     assert.equal(saved.status, 200)
     assert.equal(saved.body.warning, undefined)
     assert.equal(saved.body.validated, true)
     assert.deepEqual(liveCfg.discoveredPlanIds, [])
     assert.deepEqual(liveCfg.customModels.map((model) => model.id), ['cline-pass/mine'])
+    assert.equal(liveCfg.upstreamPins[0].provider, 'deepseek')
     assert.equal(existsSync(cacheFile), false)
     assert.equal(applied.some((item) => Array.isArray(item) && item[0] === 'sync' && item[1].length > 0), false)
   } finally {
