@@ -9,6 +9,12 @@ function windowPercent(window) {
   return typeof window?.percentUsed === 'number' ? `${Math.round(window.percentUsed)}%` : '—'
 }
 
+// Same thresholds as the window cards.
+function windowTone(window) {
+  const pct = window?.percentUsed
+  return typeof pct !== 'number' ? 'cb-num' : pct >= 95 ? 'cb-num cb-quota-pct-bad' : pct >= 80 ? 'cb-num cb-quota-pct-warn' : 'cb-num'
+}
+
 function emailText(masked, full, shown) {
   if (shown && full) return full
   return masked || '—'
@@ -18,7 +24,7 @@ function canReveal(masked, full) {
   return Boolean(full) && Boolean(masked) && full !== masked
 }
 
-function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, hideRefresh = false, t }) {
+function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t }) {
   const [showEmail, setShowEmail] = React.useState(false)
   const checkedAt = formatResetTime(usage?.checkedAt)
   const activeEnv = status?.key?.envName || ''
@@ -26,12 +32,6 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
   const activeMasked = usage?.user?.email || ''
   const activeFull = usage?.user?.emailFull || ''
   const emailToggle = canReveal(activeMasked, activeFull) || others.some((row) => canReveal(row.email, row.emailFull))
-  const metaRows = [
-    [t('quota.col_plan'), usage?.plan || '—'],
-    usage?.canceledAt ? [t('quota.canceled'), formatResetTime(usage.canceledAt) || usage.canceledAt] : null,
-    usage?.cancelAtPeriodEnd ? [t('quota.cancel_period'), t('quota.cancel_period_yes')] : null,
-    [t('quota.col_checked'), checkedAt || '—'],
-  ].filter(Boolean)
   return React.createElement(
     React.Fragment,
     null,
@@ -63,11 +63,11 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
             'div',
             { className: 'cb-section-title' },
             t('quota.title'),
-            hideRefresh ? null : React.createElement(
+            React.createElement(
               'button',
               {
                 type: 'button',
-                className: 'cb-btn',
+                className: 'cb-btn cb-btn-sm',
                 disabled: !!busy,
                 onClick: handleRefreshQuota,
               },
@@ -75,30 +75,22 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
             )
           ),
           React.createElement(
-            'table',
-            { className: 'cb-table cb-facts cb-quota-meta' },
-            React.createElement('tbody', null,
-              React.createElement('tr', { key: 'account' },
-                React.createElement('th', { scope: 'row' }, t('quota.col_account')),
-                React.createElement('td', null,
-                  React.createElement('span', { className: 'cb-email-line' },
-                    React.createElement('span', null, emailText(activeMasked, activeFull, showEmail)),
-                    emailToggle
-                      ? React.createElement('button', {
-                          type: 'button',
-                          className: 'cb-btn cb-email-toggle',
-                          'aria-pressed': showEmail ? 'true' : 'false',
-                          onClick: () => setShowEmail((current) => !current),
-                        }, showEmail ? t('quota.email_hide') : t('quota.email_show'))
-                      : null,
-                  ),
-                ),
-              ),
-              metaRows.map(([label, value]) => React.createElement('tr', { key: label },
-                React.createElement('th', { scope: 'row' }, label),
-                React.createElement('td', null, value),
-              )),
-            ),
+            'div',
+            { className: 'cb-quota-summary' },
+            React.createElement('b', null, React.createElement('span', { className: 'cb-sr-only' }, `${t('quota.col_account')}: `), emailText(activeMasked, activeFull, showEmail)),
+            emailToggle
+              ? React.createElement('button', {
+                  type: 'button',
+                  className: 'cb-link-btn',
+                  'aria-pressed': showEmail ? 'true' : 'false',
+                  onClick: () => setShowEmail((current) => !current),
+                }, showEmail ? t('quota.email_hide') : t('quota.email_show'))
+              : null,
+            usage?.plan ? React.createElement('span', { className: 'cb-dot-sep', 'aria-hidden': true }) : null,
+            usage?.plan ? React.createElement('span', null, React.createElement('span', { className: 'cb-sr-only' }, `${t('quota.col_plan')}: `), usage.plan) : null,
+            usage?.canceledAt ? React.createElement('span', { className: 'cb-badge cb-badge-warn' }, `${t('quota.canceled')} ${formatResetTime(usage.canceledAt) || usage.canceledAt}`) : null,
+            usage?.cancelAtPeriodEnd ? React.createElement('span', { className: 'cb-badge cb-badge-warn' }, t('quota.cancel_period_yes')) : null,
+            React.createElement('span', { className: 'cb-footnote cb-push' }, t('quota.updated', { time: checkedAt || '—' })),
           ),
           React.createElement('div', { className: 'cb-quota-windows' },
             React.createElement(ProgressBar, {
@@ -130,23 +122,23 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
             ? React.createElement(
                 'div',
                 { className: 'cb-quota-scroll' },
-                React.createElement('div', { className: 'cb-section-desc' }, t('quota.other_accounts')),
-                React.createElement(
+                React.createElement('div', { className: 'cb-subtitle' }, t('quota.other_accounts')),
+                React.createElement('div', { className: 'cb-table-box' }, React.createElement(
                   'table',
                   { className: 'cb-table cb-quota-others' },
                   React.createElement('thead', null, React.createElement('tr', null,
                     React.createElement('th', null, t('quota.col_account')),
-                    React.createElement('th', null, t('quota.window_5h')),
-                    React.createElement('th', null, t('quota.window_weekly')),
-                    React.createElement('th', null, t('quota.window_monthly')),
+                    React.createElement('th', { className: 'cb-num' }, t('quota.window_5h')),
+                    React.createElement('th', { className: 'cb-num' }, t('quota.window_weekly')),
+                    React.createElement('th', { className: 'cb-num' }, t('quota.window_monthly')),
                     React.createElement('th', null, t('quota.col_reset')),
                   )),
                   React.createElement('tbody', null, others.map((row) => {
                     const cells = row.ok
                       ? [
-                          React.createElement('td', { key: '5h' }, windowPercent(row.windows?.fiveHour)),
-                          React.createElement('td', { key: 'week' }, windowPercent(row.windows?.weekly)),
-                          React.createElement('td', { key: 'month' }, windowPercent(row.windows?.monthly)),
+                          React.createElement('td', { key: '5h', className: windowTone(row.windows?.fiveHour) }, windowPercent(row.windows?.fiveHour)),
+                          React.createElement('td', { key: 'week', className: windowTone(row.windows?.weekly) }, windowPercent(row.windows?.weekly)),
+                          React.createElement('td', { key: 'month', className: windowTone(row.windows?.monthly) }, windowPercent(row.windows?.monthly)),
                           React.createElement('td', { key: 'reset' }, formatResetTime(earliestReset(row.windows)) || '—'),
                         ]
                       : [React.createElement('td', { key: 'error', colSpan: 4 }, row.error || t('quota.account_failed'))]
@@ -159,7 +151,7 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
                       ...cells,
                     )
                   })),
-                ),
+                )),
               )
             : null,
         )

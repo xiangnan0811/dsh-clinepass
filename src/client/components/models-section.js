@@ -87,27 +87,33 @@ function ModelsSection({
     { className: 'cb-section-card' },
     React.createElement(
       'div',
-      { className: 'cb-section-title cb-section-title-stack' },
+      { className: 'cb-section-title' },
       t('models.title', { enabled: enabledCount, total: totalCount }),
       React.createElement(
         'div',
         { className: 'cb-row' },
+        React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => saveModelPatch({ selectionKind: 'all-except-disabled', disabledModels: [], explicitModels: [] }) }, t('models.enable_all')),
+        React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy || !keyPresent, onClick: handleSyncPlanModels }, busy === 'sync-models' ? t('models.syncing') : t('models.sync')),
+      )
+    ),
+    React.createElement('div', { className: 'cb-section-desc' }, t('models.desc')),
+    React.createElement(
+      'div',
+      { className: 'cb-toolbar' },
+      React.createElement('div', { className: 'cb-tabs', role: 'group', 'aria-label': t('nav.models') },
         [['all', 'models.all'], ['vision', 'models.vision'], ['coding', 'models.coding'], ['recommended', 'models.recommended']].map(([id, key]) => React.createElement(
           'button',
           {
             key: id,
             type: 'button',
-            className: modelsFilter === id ? 'cb-btn cb-btn-active' : 'cb-btn',
+            className: 'cb-tab',
+            'aria-pressed': modelsFilter === id,
             onClick: () => handleSetModelsFilter(id),
           },
           t(key),
-        )),
-        React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: () => saveModelPatch({ selectionKind: 'all-except-disabled', disabledModels: [], explicitModels: [] }) }, t('models.enable_all')),
-        React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy || !keyPresent, onClick: handleSyncPlanModels }, busy === 'sync-models' ? t('models.syncing') : t('models.sync')),
-      )
+        ))),
+      React.createElement('input', { className: 'cb-input cb-grow', type: 'search', value: modelsSearch, placeholder: t('models.search'), 'aria-label': t('models.search'), onChange: (event) => setModelsSearch(event.target.value) }),
     ),
-    React.createElement('div', { className: 'cb-section-desc' }, t('models.desc')),
-    React.createElement('input', { className: 'cb-input', type: 'search', value: modelsSearch, placeholder: t('models.search'), 'aria-label': t('models.search'), onChange: (event) => setModelsSearch(event.target.value) }),
     React.createElement(ModelTools, { config, modelsList, saveModelPatch, busy, t }),
     React.createElement(
       'label',
@@ -138,7 +144,8 @@ function ModelsSection({
               React.createElement('strong', null, model.name),
               React.createElement('button', {
                 type: 'button',
-                className: 'cb-btn',
+                className: 'cb-btn cb-btn-sm',
+                'aria-expanded': editing === model.id,
                 onClick: () => (editing === model.id ? setEditing('') : openEditor(model)),
               }, editing === model.id ? t('models.close') : t('models.edit')),
             ),

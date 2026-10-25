@@ -108,16 +108,20 @@ function ClineDetails(props) {
     finally { setLoading(false) }
   }, [request])
   React.useEffect(() => { if (tab === 'overview') void load() }, [tab, load])
+  // Only the body scrolls, so the tab bar never overlaps scrolled content.
   return React.createElement(NativeModal, { open: true, onClose: props.onClose, title: t('surface.details'), className: 'cb-details-modal', contentClassName: 'cb-details-content', closeLabel: t('surface.close'), children:
-    React.createElement('div', { className: 'cb-detail-window' },
-      React.createElement('div', { className: 'cb-detail-tabs' }, ['overview', 'configuration'].map((value) => React.createElement('button', { type: 'button', className: tab === value ? 'cb-btn cb-btn-active' : 'cb-btn', key: value, 'aria-pressed': tab === value, onClick: () => setTab(value) }, t(`surface.${value}`))),
-        tab === 'overview' ? React.createElement('button', { type: 'button', className: 'cb-btn', disabled: loading, onClick: () => load(true) }, loading ? t('surface.loading') : t('quota.refresh')) : null),
-      tab === 'configuration' ? React.createElement(PluginCard, { ...props, view: 'page', openPluginUpdates: props.openPluginUpdates ? () => { props.onClose?.(); props.openPluginUpdates() } : undefined }) : React.createElement('div', { className: 'cb-page' },
-        error ? React.createElement('div', { className: 'cb-alert-bad' }, error) : null,
-        status ? React.createElement(React.Fragment, null,
-          React.createElement(QuotaSection, { keyPresent: status.key.present, status, usage: status.usage, accountUsage: accounts, busy: loading ? 'refresh-quota' : '', handleRefreshQuota: () => load(true), hideRefresh: true, t }),
-          React.createElement(StatsSection, { status, t }),
-          React.createElement(ModelProbe, { status, t })) : React.createElement('div', { className: 'cb-section-desc' }, t('surface.loading')))) })
+    React.createElement('div', { className: 'cb-detail-shell' },
+      React.createElement('div', { className: 'cb-detail-head' },
+        React.createElement('div', { className: 'cb-tabs', role: 'tablist', 'aria-label': t('surface.details') }, ['overview', 'configuration'].map((value) => React.createElement('button', { type: 'button', role: 'tab', id: `cb-details-tab-${value}`, 'aria-controls': 'cb-details-panel', className: 'cb-tab', key: value, 'aria-selected': tab === value, onClick: () => setTab(value) }, t(`surface.${value}`))))),
+      React.createElement('div', { className: 'cb-detail-body', role: 'tabpanel', id: 'cb-details-panel', 'aria-labelledby': `cb-details-tab-${tab}`, key: tab },
+        tab === 'configuration' ? React.createElement(PluginCard, { ...props, view: 'page', openPluginUpdates: props.openPluginUpdates ? () => { props.onClose?.(); props.openPluginUpdates() } : undefined }) : React.createElement('div', { className: 'cb-page' },
+          error ? React.createElement('div', { className: 'cb-alert-bad' }, error) : null,
+          // The quota card owns refresh; without it a failed load still needs a way back.
+          error && !status?.key?.present ? React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn', disabled: loading, onClick: () => load(true) }, t('settings.retry'))) : null,
+          status ? React.createElement(React.Fragment, null,
+            React.createElement(QuotaSection, { keyPresent: status.key.present, status, usage: status.usage, accountUsage: accounts, busy: loading ? 'refresh-quota' : '', handleRefreshQuota: () => load(true), t }),
+            React.createElement(StatsSection, { status, t }),
+            React.createElement(ModelProbe, { status, t })) : error ? null : React.createElement('div', { className: 'cb-section-desc' }, t('surface.loading'))))) })
 }
 
 function sessionEstimate(projection, preferences) {
@@ -165,9 +169,9 @@ function ComposerUsageContent(props) {
       `ClinePass · ${result.calls === null ? t('surface.loading') : t('surface.calls', { count: result.calls })} · ${result.tokens === null ? t('surface.unknown') : result.tokens.toLocaleString() + ' tok'} · ${upstreamText}${latest ? ' · ' + t(`routing.state_${latest.upstreamPinStatus || 'unrecorded'}`) : ''}`),
     open ? React.createElement(NativeModal, { open: true, onClose: () => setOpen(false), title: t('surface.session_title'), className: 'cb-session-modal', closeLabel: t('surface.close'), children:
       React.createElement('div', { className: 'cb-page cb-session-detail' }, React.createElement('p', null, t('surface.session_hint')),
-        React.createElement('div', null,
+        React.createElement('div', { className: 'cb-block' },
           React.createElement('p', { className: 'cb-section-desc' }, t('routing.session_hint')),
-          React.createElement('button', { type: 'button', className: 'cb-btn', onClick: () => setRoutingRefresh((value) => value + 1) }, t('routing.refresh')),
+          React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', onClick: () => setRoutingRefresh((value) => value + 1) }, t('routing.refresh'))),
           routing.error ? React.createElement('p', { className: 'cb-alert-bad' }, routing.error) : null,
           routing.loading ? React.createElement('p', null, t('surface.loading')) : React.createElement(RoutingHistory, { records: routing.records, t })),
         React.createElement('div', { className: 'cb-cost-estimate' }, React.createElement('span', null, t('surface.estimated_cost')), React.createElement('strong', null, cost)),

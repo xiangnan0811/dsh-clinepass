@@ -124,6 +124,46 @@ test('routing details show returned identifiers separately without changing the 
   assert.doesNotMatch(JSON.stringify(component({ record: {}, t })), /routing.evidence_hint/)
 })
 
+test('routing history pages long record lists instead of nesting a scroll area', () => {
+  let limit
+  const React = { Fragment: 'fragment', useState(initial) { limit ??= initial; return [limit, (value) => { limit = value }] }, createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat() }) }
+  const { RoutingHistory, RoutingRecord } = vm.runInNewContext(readFileSync(new URL('../src/client/components/upstream-observation.js', import.meta.url), 'utf8') + '\n({RoutingHistory,RoutingRecord})', { React })
+  const t = (key, values) => values ? `${key}:${JSON.stringify(values)}` : key
+  const records = Array.from({ length: 46 }, (_, index) => ({ id: `r${index}`, model: 'm', account: 'a', ok: index !== 1, completedAt: 0, upstreamPinStatus: 'mismatch', attempts: [{ code: index === 1 ? 'RATE_LIMIT' : '' }] }))
+  const rows = (tree) => tree.children.find((child) => child?.props?.className === 'cb-routing-list').children
+  let tree = RoutingHistory({ records, t })
+  assert.equal(rows(tree).length, 20)
+  const more = tree.children.at(-1).children[0]
+  assert.match(more.children[0], /"count":26/)
+  more.props.onClick()
+  tree = RoutingHistory({ records, t })
+  assert.equal(rows(tree).length, 40)
+  assert.equal(RoutingHistory({ records: records.slice(0, 3), t }).children.at(-1), null)
+  // Failure state and pin result stay visible in the collapsed row; the failure code is in the expanded body.
+  const [summary, body] = RoutingRecord({ row: records[1], t }).children
+  assert.equal(summary.type, 'summary')
+  assert.match(JSON.stringify(summary), /cb-routing-dot-bad/)
+  assert.match(JSON.stringify(summary), /cb-badge-bad.*routing\.state_mismatch/)
+  assert.match(JSON.stringify(body), /RATE_LIMIT/)
+})
+
+test('statistics coverage never rounds a partial share up to complete', () => {
+  const { coveragePercent } = vm.runInNewContext(readFileSync(new URL('../src/client/components/stats-section.js', import.meta.url), 'utf8') + '\n({coveragePercent})')
+  assert.equal(coveragePercent(14038, 14039), '99.9%')
+  assert.equal(coveragePercent(14039, 14039), '100%')
+  assert.equal(coveragePercent(2433, 14039), '17.3%')
+  assert.equal(coveragePercent(1, 14039), '<0.1%')
+  assert.equal(coveragePercent(0, 14039), '—')
+  assert.equal(coveragePercent(0, 0), '—')
+})
+
+test('credential source identifiers are translated when a label exists', () => {
+  const { sourceLabel } = vm.runInNewContext(readFileSync(new URL('../src/client/settings-page.js', import.meta.url), 'utf8') + '\n({sourceLabel})')
+  const t = (key) => ({ 'source.credentials': '凭据库' })[key] || key
+  assert.equal(sourceLabel('credentials', t), '凭据库')
+  assert.equal(sourceLabel('custom-store', t), 'custom-store')
+})
+
 test('reset countdown distinguishes a future reset, reset in progress, and missing time', () => {
   const reset = vm.runInNewContext(readFileSync(new URL('../src/client/progress-bar.js', import.meta.url), 'utf8') + '\nresetCountdown')
   assert.equal(reset('2026-10-19T00:01:01Z', Date.parse('2026-10-19T00:00:00Z')).time, '1m 1s')

@@ -1,5 +1,6 @@
 function DisplaySettings({ status, draft, busy, saveSettings, t }) {
-  const fields = [['inputPerMillion', 'input_rate'], ['outputPerMillion', 'output_rate'], ['cacheReadPerMillion', 'cache_read_rate'], ['cacheWritePerMillion', 'cache_write_rate']]
+  const fields = [['inputPerMillion', 'rate_col_input'], ['outputPerMillion', 'rate_col_output'], ['cacheReadPerMillion', 'rate_col_cache_read'], ['cacheWritePerMillion', 'rate_col_cache_write']]
+  const unit = `${draft.costCurrency || 'USD'}/1M`
   const [model, setModel] = React.useState('')
   const [values, setValues] = React.useState({})
   const [notice, setNotice] = React.useState(null)
@@ -23,11 +24,18 @@ function DisplaySettings({ status, draft, busy, saveSettings, t }) {
       React.createElement('div', { className: 'cb-grid-2' },
         React.createElement('label', { className: 'cb-field' }, t('surface.currency'), React.createElement('select', { className: 'cb-input', value: draft.costCurrency || 'USD', disabled: !!busy, onChange: (event) => saveSettings({ costCurrency: event.target.value }) }, ['USD', 'CNY', 'EUR', 'GBP', 'JPY'].map((value) => React.createElement('option', { value, key: value }, value)))),
         React.createElement('label', { className: 'cb-field' }, t('surface.rate_model'), React.createElement('select', { className: 'cb-input', value: model, onChange: (event) => edit(event.target.value) }, React.createElement('option', { value: '' }, t('surface.select_model')), (status.availableModels || []).map((row) => React.createElement('option', { value: row.id, key: row.id }, row.name)))),
-        fields.map(([key, label]) => React.createElement('label', { className: 'cb-field', key }, t(`surface.${label}`), React.createElement('input', { className: 'cb-input', type: 'number', min: 0, step: 'any', value: values[key] || '', disabled: !!busy, placeholder: '—', onChange: (event) => setValues({ ...values, [key]: event.target.value }) })))),
+        fields.map(([key, label]) => React.createElement('label', { className: 'cb-field', key }, `${t(`surface.${label}`)} (${unit})`, React.createElement('input', { className: 'cb-input', type: 'number', min: 0, step: 'any', value: values[key] || '', disabled: !!busy, placeholder: '—', onChange: (event) => setValues({ ...values, [key]: event.target.value }) })))),
       React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-primary', disabled: !!busy || !model, onClick: save }, t('surface.save_rate'))),
-      (draft.costRates || []).map((rate) => React.createElement('div', { className: 'cb-rate-row', key: rate.model },
-        React.createElement('span', { className: 'cb-model-id' }, rate.model),
-        React.createElement('div', { className: 'cb-metrics' }, fields.map(([key, label]) => React.createElement('div', { className: 'cb-metric', key }, React.createElement('span', null, t(`surface.${label}`)), React.createElement('b', null, rate[key] == null ? t('surface.unknown') : `${draft.costCurrency || 'USD'} ${rate[key]}`)))),
-        React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: () => edit(rate.model) }, t('models.edit')), React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: () => saveSettings({ costRates: draft.costRates.filter((row) => row.model !== rate.model) }) }, t('surface.remove_rate'))))),
-      notice ? React.createElement('div', { className: notice.ok ? 'cb-alert-ok' : 'cb-alert-bad', role: 'status' }, notice.message) : null))
+      notice ? React.createElement('div', { className: notice.ok ? 'cb-alert-ok' : 'cb-alert-bad', role: 'status' }, notice.message) : null,
+      draft.costRates?.length ? React.createElement('div', { className: 'cb-table-box' }, React.createElement('table', { className: 'cb-table' },
+        React.createElement('thead', null, React.createElement('tr', null,
+          React.createElement('th', null, t('durable.model')),
+          fields.map(([key, label]) => React.createElement('th', { key, className: 'cb-num' }, `${t(`surface.${label}`)} (${unit})`)),
+          React.createElement('th', { className: 'cb-actions' }, t('accounts.col_action')))),
+        React.createElement('tbody', null, draft.costRates.map((rate) => React.createElement('tr', { key: rate.model },
+          React.createElement('td', null, React.createElement('code', null, rate.model)),
+          fields.map(([key]) => React.createElement('td', { key, className: 'cb-num' }, rate[key] == null ? t('surface.unknown') : rate[key])),
+          React.createElement('td', { className: 'cb-actions' }, React.createElement('div', { className: 'cb-row' },
+            React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => edit(rate.model) }, t('models.edit')),
+            React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm cb-btn-ghost', disabled: !!busy, onClick: () => saveSettings({ costRates: draft.costRates.filter((row) => row.model !== rate.model) }) }, t('surface.remove_rate'))))))))) : null))
 }

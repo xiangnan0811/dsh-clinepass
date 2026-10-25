@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.3 — 2026-10-25
+
+Rework the details window and settings layout. Only the details body scrolls under
+fixed segmented tabs, and quota refresh returns to the quota card. Inside the
+window, the configuration tab no longer repeats quota, statistics and the probe,
+and a failed first load offers a retry. Settings are grouped as connection,
+quota, models, routing, usage and rates, search, statistics and diagnostics,
+with jump links. Quota and statistics are omitted inside the window. The header
+shows title and version first, with translated credential sources.
+
+Quota shows a one-line account summary and one-line resets. Normal usage shows
+neutral percentages and an accent bar; warning and exhausted states keep their
+colors. Statistics gain summary tiles and a coverage column. Partial coverage
+never rounds to 100%, and a few measured requests never show as 0%.
+Filters no longer stretch the apply button. Resetting statistics now needs
+confirmation. Request history uses compact expandable rows paged in steps of 20
+instead of a nested scroll area. Rates, model routes and accounts use tables.
+Proxy-only routing collapses while the proxy is off. Primary buttons use the host
+accent, and monospace text no longer falls back to a serif font.
+
 ## 0.7.2 — 2026-10-25
 
 Add `cline-pass/deepseek-v4.1-flash-1017` as a separate catalog model with DeepSeek

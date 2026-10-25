@@ -32,8 +32,8 @@ function ModelTools({ config, modelsList, saveModelPatch, busy, t }) {
   return React.createElement(React.Fragment, null,
     React.createElement('div', { className: 'cb-row' },
       [['none', 'models.select_none'], ['plan', 'models.select_plan'], ['clean', 'models.clean_selection']].map(([action, label]) =>
-        React.createElement('button', { key: action, type: 'button', className: 'cb-btn', disabled: !!busy || (action === 'plan' && !config.planVerified), onClick: () => saveModelPatch({ selectionAction: action }) }, t(label))),
-      React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: () => saveModelPatch({ selectionKind: 'explicit', explicitModels: modelsList.map((model) => model.id) }) }, t('models.select_visible'))),
+        React.createElement('button', { key: action, type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy || (action === 'plan' && !config.planVerified), onClick: () => saveModelPatch({ selectionAction: action }) }, t(label))),
+      React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => saveModelPatch({ selectionKind: 'explicit', explicitModels: modelsList.map((model) => model.id) }) }, t('models.select_visible'))),
     React.createElement('label', { className: 'cb-check' }, React.createElement('input', { type: 'checkbox', checked: !!config.planFilterEnabled, disabled: !!busy, onChange: (event) => saveModelPatch({ planFilterEnabled: event.target.checked }) }), t('models.plan_filter')),
     config.planFilterEnabled && !config.planVerified ? React.createElement('div', { className: 'cb-banner-warning' }, t('models.plan_pending')) : null,
     React.createElement('details', null,

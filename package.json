@@ -1,6 +1,6 @@
 {
   "name": "dsh-clinepass",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "private": true,
   "description": "DeepSeek Harness plugin that connects ClinePass: models, API key, and usage limits.",
   "license": "MIT",

@@ -75,7 +75,7 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
         )
       : null,
     accounts.length
-      ? React.createElement(
+      ? React.createElement('div', { className: 'cb-table-box' }, React.createElement(
           'table',
           { className: 'cb-table' },
           React.createElement(
@@ -85,7 +85,7 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
               React.createElement('th', null, t('accounts.col_name')),
               React.createElement('th', null, t('accounts.col_ref')),
               React.createElement('th', null, t('accounts.col_status')),
-              React.createElement('th', null, t('accounts.col_action')),
+              React.createElement('th', { className: 'cb-actions' }, t('accounts.col_action')),
             ),
           ),
           React.createElement(
@@ -102,23 +102,24 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
                 React.createElement(
                   'td',
                   null,
-                  acc.present
-                    ? React.createElement('span', { className: 'cb-badge cb-badge-ok' }, t('accounts.configured', { source: acc.source }))
-                    : React.createElement('span', { className: 'cb-badge cb-badge-warn' }, t('accounts.missing')),
-                  isActive
-                    ? React.createElement('span', { className: 'cb-badge cb-badge-ok', style: { marginLeft: '6px' } }, t('accounts.active_badge'))
-                    : null,
+                  React.createElement('span', { className: 'cb-row' },
+                    acc.present
+                      ? React.createElement('span', { className: 'cb-badge cb-badge-ok' }, t('accounts.configured', { source: sourceLabel(acc.source, t) }))
+                      : React.createElement('span', { className: 'cb-badge cb-badge-warn' }, t('accounts.missing')),
+                    isActive
+                      ? React.createElement('span', { className: 'cb-badge' }, t('accounts.active_badge'))
+                      : null),
                 ),
                 React.createElement(
                   'td',
-                  { style: { textAlign: 'right' } },
+                  { className: 'cb-actions' },
                   React.createElement(
                     'div',
-                    { className: 'cb-row', style: { justifyContent: 'flex-end' } },
+                    { className: 'cb-row' },
                     !isActive && acc.present
                       ? React.createElement('button', {
                           type: 'button',
-                          className: 'cb-btn',
+                          className: 'cb-btn cb-btn-sm',
                           disabled: !!busy,
                           onClick: () => handlePinAccount(acc.apiKeyEnv),
                         }, t('accounts.pin_btn'))
@@ -127,7 +128,7 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
                       ? null
                       : React.createElement('button', {
                           type: 'button',
-                          className: 'cb-btn',
+                          className: 'cb-btn cb-btn-sm cb-btn-ghost',
                           disabled: !!busy,
                           onClick: () => {
                             setConfirmEnv(acc.apiKeyEnv)
@@ -139,7 +140,7 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
               )
             }),
           ),
-        )
+        ))
       : null,
     confirmEnv
       ? React.createElement(
@@ -226,7 +227,7 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
             }, t('accounts.cancel')),
           ),
         )
-      : React.createElement('div', { className: 'cb-account-add' },
+      : React.createElement('div', { className: 'cb-row' },
           React.createElement('button', {
             type: 'button',
             className: 'cb-btn',

@@ -13,7 +13,7 @@ DeepSeek Harness 的 ClinePass 插件，维护在这个仓库：
 
 ## 从本仓库安装
 
-`0.7.2` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
+`0.7.3` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
 
 DeepSeek Harness 通过 pnpm 安装插件。GitHub 地址就够用：
 
@@ -49,7 +49,7 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 
 `api.cline.bot` 的 `GET /api/v1/models` 返回 404。有密钥时，发现走 `GET /users/me/plan`。`cline-pass/deepseek-v4.1-flash` 是普通 ClinePass 模型，也是默认冒烟模型。
 
-`0.7.2` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
+`0.7.3` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
 
 宿主提供 `connection.requestRejection` 时，全部 `/dsh-clinebot/*` 接口都要求 DSH 登录认证，包括读取和更新检查。请通过 `dsh web` 打印的地址登录。未认证返回 401，宿主或来源校验失败返回 403；设置写入仍保留来源校验。
 

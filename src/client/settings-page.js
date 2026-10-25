@@ -13,9 +13,17 @@ function pickSmokeModel(config, models) {
   return ids[0] || ''
 }
 
+// Credential sources are internal identifiers; show a translated label when one exists.
+function sourceLabel(source, t) {
+  const key = `source.${source}`
+  const label = t(key)
+  return label === key ? source : label
+}
+
 function SettingsPage(props) {
   const request = useClientRequests()
   const debounceTimerRef = React.useRef(null)
+  const pageRef = React.useRef(null)
   const t = props?.t || makeT(en, en)
   const scope = props?.scope || null
   const scopeError = props?.scopeError || ''
@@ -489,31 +497,12 @@ function SettingsPage(props) {
     || (snapshotStatus === 'unavailable' ? t('settings.unavailable') : '')
     || (snapshotStatus === 'loading' ? t('settings.mirror_loading') : '')
   const usage = status.usage
+  // Inside the details window the overview tab already shows quota and statistics.
+  const showUsage = !props.insideDetails
+  const jump = (id) => pageRef.current?.querySelector(`[data-cb-anchor="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
-  return React.createElement(
-    'div',
-    { className: 'cb-page' },
-
-    // Page Header
-    React.createElement(
-      'div',
-      { className: 'cb-status' },
-      React.createElement('span', { className: `cb-badge ${healthOk ? 'cb-badge-ok' : 'cb-badge-bad'}` }, healthOk ? t('badge.online', { latency: status.health?.latencyMs }) : t('badge.offline')),
-      React.createElement('span', { className: `cb-badge ${keyPresent ? 'cb-badge-ok' : 'cb-badge-warn'}` }, keyPresent ? t('badge.key_ok', { source: status.key?.source }) : t('badge.key_missing')),
-      React.createElement('span', { className: `cb-badge ${isRegistered ? 'cb-badge-ok' : 'cb-badge-warn'}` }, isRegistered ? t('badge.registered', { count: enabledCount }) : t('badge.not_registered')),
-    ),
-
-    React.createElement('div', { className: 'cb-plugin-info' },
-      React.createElement('strong', null, 'ClinePass'),
-      React.createElement('span', { className: 'cb-badge' }, t('settings.version', { version: status.pluginVersion || '—' })),
-      React.createElement('a', { href: 'https://github.com/xiangnan0811/dsh-clinepass', target: '_blank', rel: 'noreferrer' }, 'github.com/xiangnan0811/dsh-clinepass')),
-
-    // Notifications
-    scopeNote ? React.createElement('div', { className: 'cb-banner-warning' }, scopeNote) : null,
-    err ? React.createElement('div', { className: 'cb-alert-bad' }, err) : null,
-    msg ? React.createElement('div', { className: 'cb-alert-ok' }, msg) : null,
-
-    // Card 1: API Key and Credentials
+  const sections = [
+    ['connection', [
     React.createElement(KeySection, {
       keyPresent,
       apiKeyInput,
@@ -530,19 +519,10 @@ function SettingsPage(props) {
       onImported: load,
       t,
     }),
-
-    // Accounts Pool Card
     React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }),
-    props.openDetails && !props.insideDetails ? React.createElement('button', { type: 'button', className: 'cb-btn', onClick: props.openDetails }, t('surface.open_window')) : null,
-    React.createElement(DisplaySettings, { status, draft, busy, saveSettings, t }),
-    React.createElement(SearchSettings, { status, draft, busy, saveSettings, t }),
-    React.createElement(ProxySection, { status, draft, busy, saveSettings, reload: load, t }),
-    React.createElement(UpstreamSettings, { status, config: draft, busy, saveModelPatch, t }),
-
-    // Quota Warning & Dashboard Card
-    React.createElement(QuotaSection, { keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t }),
-
-    // Card 3: Model Picker Management
+    ]],
+    showUsage && ['quota', [React.createElement(QuotaSection, { keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t })]],
+    ['models', [
     React.createElement(ModelsSection, {
       modelsList,
       enabledSet,
@@ -561,12 +541,15 @@ function SettingsPage(props) {
       saveModelPatch,
       t,
     }),
-
-    // Card 4: Session Metrics & Usage Tracking
-    React.createElement(StatsSection, { status, t }),
-    React.createElement(ModelProbe, { status, t }),
-
-    // Card 5: Diagnostics & Sync with DSH
+    ]],
+    ['routing', [
+      React.createElement(ProxySection, { status, draft, busy, saveSettings, reload: load, t }),
+      React.createElement(UpstreamSettings, { status, config: draft, busy, saveModelPatch, t }),
+    ]],
+    ['display', [React.createElement(DisplaySettings, { status, draft, busy, saveSettings, t })]],
+    ['search', [React.createElement(SearchSettings, { status, draft, busy, saveSettings, t })]],
+    showUsage && ['stats', [React.createElement(StatsSection, { status, t }), React.createElement(ModelProbe, { status, t })]],
+    ['diag', [
     React.createElement(DiagSection, {
       keyPresent,
       isRegistered,
@@ -590,6 +573,31 @@ function SettingsPage(props) {
       handleUnregister,
       handleRegister,
       t,
-    })
+    }),
+    ]],
+  ].filter(Boolean)
+
+  return React.createElement(
+    'div',
+    { className: 'cb-page', ref: pageRef },
+    React.createElement('div', { className: 'cb-plugin-info' },
+      React.createElement('div', { className: 'cb-plugin-title' },
+        React.createElement('strong', null, 'ClinePass'),
+        React.createElement('span', { className: 'cb-badge' }, t('settings.version', { version: status.pluginVersion || '—' })),
+        React.createElement('span', { className: 'cb-plugin-links' },
+          props.openDetails && !props.insideDetails ? React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', onClick: props.openDetails }, t('surface.open_window')) : null,
+          React.createElement('a', { href: 'https://github.com/xiangnan0811/dsh-clinepass', target: '_blank', rel: 'noreferrer', title: 'github.com/xiangnan0811/dsh-clinepass' }, 'GitHub ↗'))),
+      React.createElement('div', { className: 'cb-status' },
+        React.createElement('span', { className: `cb-badge ${healthOk ? 'cb-badge-ok' : 'cb-badge-bad'}` }, healthOk ? t('badge.online', { latency: status.health?.latencyMs }) : t('badge.offline')),
+        React.createElement('span', { className: `cb-badge ${keyPresent ? 'cb-badge-ok' : 'cb-badge-warn'}` }, keyPresent ? t('badge.key_ok', { source: sourceLabel(status.key?.source, t) }) : t('badge.key_missing')),
+        React.createElement('span', { className: `cb-badge ${isRegistered ? 'cb-badge-ok' : 'cb-badge-warn'}` }, isRegistered ? t('badge.registered', { count: enabledCount }) : t('badge.not_registered'))),
+      React.createElement('nav', { className: 'cb-section-nav', 'aria-label': t('title') }, sections.map(([id]) =>
+        React.createElement('button', { type: 'button', className: 'cb-chip', key: id, onClick: () => jump(id) }, t(`nav.${id}`))))),
+
+    scopeNote ? React.createElement('div', { className: 'cb-banner-warning' }, scopeNote) : null,
+    err ? React.createElement('div', { className: 'cb-alert-bad' }, err) : null,
+    msg ? React.createElement('div', { className: 'cb-alert-ok' }, msg) : null,
+
+    sections.map(([id, children]) => React.createElement('div', { className: 'cb-anchor', 'data-cb-anchor': id, key: id }, ...children)),
   )
 }

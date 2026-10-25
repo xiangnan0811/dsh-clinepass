@@ -1,5 +1,47 @@
 # Validation record
 
+## 0.7.3 details window and settings layout (2026-10-25)
+
+`npm test` passed 200 tests, including lint and the client consistency check.
+New regressions cover request-history paging and failed-row visibility, coverage
+rounding below 100%, and translated credential sources.
+
+A `npm pack` archive was installed with `dsh plugin --profile ui add` into a
+project-local DSH `0.2.1-rc.2` Web profile. That profile used fixture credentials,
+a local gateway for quota and plan responses, and seeded statistics: 14,039
+requests, two accounts and 46 recent records. An isolated headless Chromium opened
+the details window from the sidebar. It was checked in Chinese light at 1400px,
+dark at 1280px and light at 390px.
+
+Interactions checked: tab ARIA state and body reset on tab switch; quota refresh in
+the card; grouping switch; 20 → 40 history rows; reset cancel and confirm; anchors
+without usage sections inside the window; proxy toggle expanding routing; and jump
+links landing 12px below the tab bar. The host's own settings route was not reached
+by synthetic clicks. That page renders the same components plus the quota and
+statistics cards checked in the overview tab. The composer session modal was not
+opened because no session ran. The user's daily profile, Desktop and the real
+ClinePass service were not used.
+
+Independent read-only release review found no P0 or P1 defect. One P2 was
+repaired: a failed first load in the window had no retry, because the refresh
+button now lives in the quota card. Seven P3 findings were also repaired:
+
+- visually hidden account and plan labels;
+- the total attempt count restored to the request tile;
+- under 0.1% coverage shown as `<0.1%`, not 0%;
+- currency units on rate inputs and headers;
+- the history test now asserts the collapsed summary itself;
+- a 4px gap under expanded history rows;
+- two CHANGELOG statements.
+
+Tab/panel ARIA linkage and a label for the model filter group were added.
+
+The repaired `0.7.3` archive was reinstalled into the same isolated profile and
+rechecked in dark and light themes. Primary buttons measured 5.76:1 contrast in
+dark and 5.09:1 in light, raised from 4.23:1 in light. Expanded rows had no
+trailing gap. Rate headers showed `USD/1M`, and the version badge read 0.7.3.
+All interaction checks above passed again.
+
 ## 0.7.2 dated model and routing diagnostics (2026-10-25)
 
 The dated `cline-pass/deepseek-v4.1-flash-1017` is a distinct catalog entry;

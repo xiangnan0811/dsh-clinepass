@@ -17,6 +17,12 @@ function formatResetTime(isoString) {
   }
 }
 
+function formatShortTime(isoString) {
+  const d = isoString ? new Date(isoString) : null
+  if (!d || Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 function resetCountdown(resetsAt, now) {
   const stamp = resetsAt ? new Date(resetsAt).getTime() : NaN
   if (!Number.isFinite(stamp)) return { kind: 'unknown' }
@@ -58,6 +64,7 @@ function ProgressBar({ label, known = true, percentUsed, resetsAt, t }) {
           style: { width: pct == null ? '0%' : `${pct}%`, minWidth: pct > 0 ? '6px' : 0 },
         }),
     ),
-    React.createElement('div', { className: 'cb-quota-window-reset' }, resetLabel || '—', React.createElement(ResetCountdown, { resetsAt, t })),
+    React.createElement('div', { className: 'cb-quota-window-reset', title: resetLabel || undefined },
+      React.createElement(ResetCountdown, { resetsAt, t }), resetLabel ? ` · ${formatShortTime(resetsAt)}` : null),
   )
 }

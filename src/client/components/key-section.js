@@ -6,6 +6,11 @@ function KeySection({ keyPresent, apiKeyInput, setApiKeyInput, showKey, setShowK
     { className: 'cb-section-card' },
     React.createElement('div', { className: 'cb-section-title' }, t('key.title')),
     React.createElement('div', { className: 'cb-section-desc' }, t('key.desc')),
+    React.createElement('div', { className: 'cb-inline-facts' },
+      React.createElement('span', null, t('key.env_label')),
+      React.createElement('code', null, draft.apiKeyEnv || 'CLINEBOT_API_KEY'),
+      React.createElement('span', { className: 'cb-dot-sep', 'aria-hidden': true }),
+      React.createElement('a', { href: 'https://app.cline.bot', target: '_blank', rel: 'noreferrer' }, t('key.get_key'))),
     localApi ? React.createElement('div', { className: 'cb-banner-warning' }, t('key.local_base', { url: base })) : null,
     React.createElement(
       'label',
@@ -74,23 +79,5 @@ function KeySection({ keyPresent, apiKeyInput, setApiKeyInput, showKey, setShowK
       ),
     ),
     React.createElement(KeyDiscoverySection, { apiKeyInput, onImported, t }),
-    React.createElement(
-      'table',
-      { className: 'cb-table cb-facts' },
-      React.createElement('tbody', null,
-        React.createElement('tr', null,
-          React.createElement('th', { scope: 'row' }, t('key.env_label')),
-          React.createElement('td', null, React.createElement('code', null, draft.apiKeyEnv || 'CLINEBOT_API_KEY')),
-        ),
-        React.createElement('tr', null,
-          React.createElement('th', { scope: 'row' }, t('key.get_key_label')),
-          React.createElement('td', null, React.createElement('a', {
-            href: 'https://app.cline.bot',
-            target: '_blank',
-            rel: 'noreferrer',
-          }, t('key.get_key'))),
-        ),
-      ),
-    )
   )
 }
