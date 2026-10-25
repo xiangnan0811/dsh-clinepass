@@ -50,18 +50,37 @@ test('replacement settlements replace the prior sample, while durable retries ad
   assert.equal(state.view.models.__proto__.calls, 1)
 })
 
+test('replay validates partial native counters before deriving prompt totals', () => {
+  const partial = { inputTokens: 15, outputTokens: 3, cacheReadTokens: 5, totalTokens: 23 }
+  const replay = sample => projection.apply(projection.init(), JSON.parse(JSON.stringify(message('clinebot', model, sample)))).view.models[model].measurements
+  const valid = replay(partial)
+  assert.deepEqual(valid.promptTokens, { sum: 20, samples: 1 })
+  assert.deepEqual(valid.totalTokens, { sum: 23, samples: 1 })
+  assert.equal(valid.cacheWriteTokens.samples, 0)
+  for (const invalid of [
+    { inputTokens: 0, outputTokens: 3, cacheReadTokens: 10, totalTokens: 8 },
+    { inputTokens: 0, outputTokens: 3, totalTokens: 2 },
+  ]) assert.ok(Object.values(replay(invalid)).every(value => value.samples === 0))
+})
+
 test('cost estimates require explicit rates and complete per-model measurements, without adding reasoning again', () => {
   const state = projection.apply(projection.apply(projection.init(), header()), message('clinebot', model)).view
-  const rates = { costRates: [{ model, inputPerMillion: 2, outputPerMillion: 10 }] }
+  const rates = { costRates: [{ model, inputPerMillion: 2, outputPerMillion: 10, cacheReadPerMillion: 0.2, cacheWritePerMillion: 2.5 }] }
   assert.equal(sessionEstimate(state, {}).amount, null)
   const estimate = sessionEstimate(state, rates)
   assert.equal(estimate.tokens, 48)
-  assert.equal(estimate.amount, (40 * 2 + 8 * 10) / 1000000)
-  const zero = sessionEstimate(state, { costRates: [{ model, inputPerMillion: 0, outputPerMillion: 0 }] })
+  assert.equal(estimate.amount, (30 * 2 + 10 * 0.2 + 8 * 10) / 1000000)
+  const zero = sessionEstimate(state, { costRates: [{ model, inputPerMillion: 0, outputPerMillion: 0, cacheReadPerMillion: 0, cacheWritePerMillion: 0 }] })
   assert.equal(zero.amount, 0)
   const partial = projection.apply({ view: state, last: null }, message('clinebot', model, null, 1)).view
   assert.equal(sessionEstimate(partial, rates).amount, null)
   assert.equal(sessionEstimate(partial, rates).tokens, null)
+  assert.equal(sessionEstimate(state, { costRates: [{ model, inputPerMillion: 2, outputPerMillion: 10 }] }).reason, 'missing_rate')
+  const written = projection.apply(projection.apply(projection.init(), header()), message('clinebot', model, { ...usage, inputTokens: 25, cacheWriteTokens: 5 })).view
+  assert.ok(Math.abs(sessionEstimate(written, rates).amount - (25 * 2 + 10 * 0.2 + 5 * 2.5 + 8 * 10) / 1000000) < 1e-12)
+  const unknownCache = projection.apply(projection.apply(projection.init(), header()), message('clinebot', model, { ...usage, cacheWriteTokens: null })).view
+  assert.equal(sessionEstimate(unknownCache, rates).amount, null)
+  assert.equal(sessionEstimate(unknownCache, rates).reason, 'missing_usage')
 })
 
 test('composer routing records isolate sessions and ignore cancelled late responses', async () => {

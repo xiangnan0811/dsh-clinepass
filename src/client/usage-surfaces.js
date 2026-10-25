@@ -131,8 +131,13 @@ function sessionEstimate(projection, preferences) {
     tokens += totals.totalTokens.sum
     const rate = preferences.costRates?.find((entry) => entry.model === model)
     if (!rate) reason = 'missing_rate'
-    else if (totals.promptTokens.samples !== row.calls || totals.outputTokens.samples !== row.calls) reason ||= 'missing_usage'
-    else amount += (totals.promptTokens.sum * rate.inputPerMillion + totals.outputTokens.sum * rate.outputPerMillion) / 1000000
+    else {
+      for (const [field, price] of [['inputTokens', 'inputPerMillion'], ['outputTokens', 'outputPerMillion'], ['cacheReadTokens', 'cacheReadPerMillion'], ['cacheWriteTokens', 'cacheWritePerMillion']]) {
+        if (!Number.isFinite(rate[price]) || rate[price] < 0) { reason ||= 'missing_rate'; continue }
+        if (totals[field].samples !== row.calls) { reason ||= 'missing_usage'; continue }
+        amount += totals[field].sum * rate[price] / 1000000
+      }
+    }
   }
   return { calls, tokens: completeTokens ? tokens : null, amount: reason || !calls ? null : amount, reason: reason || (!calls ? 'empty' : '') }
 }

@@ -33,6 +33,23 @@ test('usage counters preserve unknowns, subtract cache hits and never add reason
   assert.doesNotMatch(JSON.stringify(record), /PRIVATE|DO_NOT_STORE/)
 })
 
+test('shared metering accepts cache aliases and rejects contradictory counters', () => {
+  const raw = { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, cached_tokens: 5, prompt_tokens_details: { cache_write_tokens: 0 } }
+  for (const source of ['proxy', 'conversation', 'smoke']) {
+    const record = normalizeRequest(event({ source, usageFormat: 'openai', usage: raw }))
+    assert.equal(record.usage.cacheReadTokens, 5)
+    assert.equal(record.usage.inputTokens, 15)
+    const bad = normalizeRequest(event({ source, usageFormat: 'openai', usage: { ...raw, prompt_tokens: 4, total_tokens: 7 } }))
+    assert.equal(bad.ok, true)
+    assert.ok(Object.values(bad.usage).every(value => value === null))
+  }
+  for (const usage of [
+    { inputTokens: 15, outputTokens: 3, cacheReadTokens: 5, cacheWriteTokens: 0, totalTokens: 999 },
+    { inputTokens: 15, promptTokens: 19, outputTokens: 3, cacheReadTokens: 5, cacheWriteTokens: 0 },
+    { inputTokens: 15, outputTokens: 3, reasoningTokens: 4 },
+  ]) assert.ok(Object.values(normalizeUsage(usage)).every(value => value === null))
+})
+
 test('routing observations distinguish actual responses from settings and absent evidence', () => {
   for (const [routing, expected] of [
     [{ upstreamPin: 'deepseek', upstream: 'DeepSeek', upstreamPinAttached: true }, 'matched'],

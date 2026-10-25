@@ -1,5 +1,81 @@
 # Validation record
 
+## 0.7.1 release preparation (2026-10-25)
+
+The user authorized commit, push, tag and GitHub Release after the settings and
+pricing repairs. Package and lockfile root versions are `0.7.1`; package identity,
+`private: true`, native peers and the release repository remain unchanged.
+Acceptance uses isolated Linux DSH Web profiles, fixture credentials and a local
+gateway. It does not install the user's daily profile or publish to npm.
+Independent release review additionally covered partial native usage with omitted
+zero cache counters. Prompt derivation now runs before shared consistency checks;
+contradictory partial totals cannot survive session replay. Partial cache-creation
+aliases also use the same normalized counters for native input and cache writes,
+preserving known totals without inventing a complete estimate. Final candidate SHA,
+independent-review result, archive installation and remote
+asset verification belong in the release's `RELEASE-VALIDATION.md` asset. Earlier
+no-release statements below describe the development stages.
+
+## Settings repair review follow-up (2026-10-25)
+
+The repaired candidate passed `npm test`: 190 tests, no failures or skips, lint
+and the 207693-byte client consistency check. Native streaming tests now carry
+top-level `cached_tokens`, DeepSeek hit/miss counters and explicit zero counts
+through the installed DSH adapter, detached session replay and the cost estimator.
+Contradictory cache/input/total counters produce no usage settlement or estimate,
+while the model text and successful finish remain intact. Missing cache counters
+still permit the known overall token total without inventing a complete price.
+Shared normalization coverage includes direct, proxy and smoke statistics.
+
+Session projection version 2 invalidates old checkpoints; an actual installed-host
+registry restore test verifies refolding from the log under the current rules.
+This cannot recover original wire data absent from existing logs or rewrite older
+profile aggregates. A component regression verifies that removing the selected
+model immediately disables upstream saving, clears the retained selection and
+requires an explicit choice even if the removed model later returns.
+
+These are native adapter/registry and component regressions. The unchanged layout
+reuses the 2026-10-24 browser evidence below; the changed selector has not received
+a new full-host browser run. Daily user profiles, Desktop, real ClinePass service,
+installation and release remain outside this validation.
+
+## Unreleased settings and pricing repair (2026-10-24)
+
+`npm test` passed 178 tests, including lint and the 207403-byte production client
+consistency check. New regressions exercise production settings routes against the
+installed host's actual `SettingsForms` write/volatile-validation methods. Retired
+keys such as `modelContextOverrides` no longer enter the editable form payload;
+their persisted values survive patch, replacement and queued derived writes.
+Four-rate estimates use separate uncached input, output, cache-read and cache-write
+counts. Missing rates or counters remain unknown; explicit zero rates are valid.
+Native stream/replay coverage verifies measured cache writes and preserves absent
+cache counters instead of synthesizing zero.
+
+The production npm archive was extracted into a fresh project-local profile and
+loaded by Linux DSH `0.2.1-rc.2`, Node `24.18.0`, with the installed host's native
+peer dependencies. This was full native Web UI acceptance, not an installer test.
+Only fixture credentials and a local HTTP/SSE gateway were used. In the host's
+settings page, browser saves succeeded for all four rates, search deadline, proxy
+on/off, model request budget and the new standalone upstream pin editor. The raw
+profile retained both retired configuration fields and the new saved values.
+Three native probe requests supplied the recent-request and statistics fixtures.
+
+Browser inspection covered Chinese/dark and English/light at 1280px, and the
+existing standalone details window at 390px. With all seven disclosures expanded,
+controls and adjacent blocks had no measured overlap or card overflow; text inputs
+and selects were 38px high. At 390px, the details window's content and scroll widths
+both measured 342px, with no document overflow. Four-rate forms, upstream controls
+and recent-request records were also checked visually. This does not change the
+host's narrow settings sidebar or claim Desktop acceptance.
+
+The settings header now shows the running version and repository link; update
+operations remain in the host Plugins page. Official Cline SDK source confirms
+model-executed search capability for ClinePass, not the separate search endpoint
+used by this plugin's experimental adapter. That adapter remains off by default
+and has no new live-channel acceptance. DeepSeek's separate Search/Fetch API and
+its CNY 5 per 1,000 successful-result requests are documented distinctly. No real
+ClinePass billing, daily user profile installation, commit or release is claimed.
+
 ## 0.7.0 strict upstream pins (2026-10-24)
 
 `npm test` passed 174 tests, including client consistency (199893 bytes), lint,

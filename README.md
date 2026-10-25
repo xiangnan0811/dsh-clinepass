@@ -14,7 +14,7 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-Version `0.7.0` requires DeepSeek Harness `^0.2.1-rc.2`.
+Version `0.7.1` requires DeepSeek Harness `^0.2.1-rc.2`.
 
 DeepSeek Harness installs plugins with pnpm. A GitHub spec is enough:
 
@@ -73,9 +73,12 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   have separate switches.
 - Composer usage comes from the current session's ClinePass reply/attempt
   projection, excluding other providers. Cost estimates require explicit per-model
-  input/output rates per million tokens. USD is the default unit; changing currency
+  uncached input, output, cache-read and cache-write rates per million tokens. USD is the default unit; changing currency
   performs no conversion. Missing rates or incomplete usage prevent calculation.
-  Cached prompt tokens use the input rate; reasoning is already within output.
+  The four categories are priced separately; reasoning is already within output.
+  Cache writes create prompt cache. Old two-rate settings need explicit cache
+  prices. Missing counters remain unknown, including in native session replay.
+  Estimates use current saved rates and are not historical bills.
 - Streaming probes allow cancellation, request at most 1024 output tokens and
   expire after 30 seconds. They measure first text/reasoning/tool output and total
   duration, and count in profile statistics rather than session reply usage.
@@ -96,7 +99,7 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass
 id. The default smoke model is that id.
 
-Version `0.7.0` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+Version `0.7.1` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
 require DSH authentication, including reads and update checks. Open the URL
@@ -146,9 +149,17 @@ LLM service, only `clinebot` transfers to the ClinePass native adapter so statis
 can observe actual provider usage. Its model parameters remain editable in Settings
 → Models. The adapter stays registered when proxy mode returns to direct mode.
 
-To keep a model on one backend, open its editor and set **Pin upstream provider**
+Contradictory token counts are excluded from measurements and cost estimates;
+the model reply and request outcome remain intact. Session projection caches are
+rebuilt from the existing log under these rules; missing historical wire data is
+not reconstructed.
+
+To keep a model on one backend, use the dedicated **Pin upstream provider** section
+in settings (also available in the model editor). Select a model and set the provider
 to an ID such as `deepseek`, then save the upstream pin. Leave it blank or choose
-**Use automatic routing** to clear it. For configuration files, use:
+**Use automatic routing** to clear it. If the selected model is removed, choose a
+model again before saving; the form does not silently select another model.
+For configuration files, use:
 
 ```yaml
 upstreamPins:
@@ -215,8 +226,12 @@ Storage errors remain visible while model calls continue; unsaved measurements
 remain in memory. Reset clears the entire profile's statistics, including filtered
 dates, and archives a corrupt file before replacing it. Accounts and models remain.
 
-Native web search uses the active account and `POST /alpha/web-search` under
-`baseUrl`. Enable it in the plugin card, then select `clinebot` in the host's web
+The [official Cline code](https://github.com/cline/cline/blob/40c5d99031fe1128189c5b52e40638d2b7787754/sdk/packages/llms/src/providers/builtins.ts)
+declares provider-executed search for ClinePass models. This does not establish
+a standalone `/alpha/web-search` endpoint for DSH. That adapter remains off by
+default under **ClinePass standalone search · experimental**, with live channel
+access unverified. It uses the active account and `baseUrl`; enable it only for
+a gateway confirmed to support that endpoint, then select `clinebot` in the host's web
 search settings. Existing search/fetch providers are preserved. Each API request
 asks for at most 10 results (5 if no bound was supplied). Genuine empty results
 are distinct from HTTP, credential, malformed-response, timeout and cancellation
@@ -225,6 +240,13 @@ Disabling or unloading unregisters the provider and cancels pending searches.
 Isolated next and local mock acceptance have passed; live channel availability
 remains unverified.
 
+DeepSeek provides independent Search and Fetch APIs. Configure the official
+provider and a DeepSeek key in the host web settings. Each costs CNY 5 per
+1,000 successful requests with results; failed, empty or timed-out requests
+are not charged. Server-side tool calls start billing at 00:00 Beijing time on
+2026-11-01. These costs are separate from ClinePass token estimates. See the
+[official guide](https://api-docs.deepseek.com/zh-cn/guides/search/).
+
 On DSH next `0.2.1-rc.2`, actual plugin disable cancels pending calls, closes the
 proxy, removes its temporary credential and restores the built-in model adapter.
 Saved model/account configuration remains available. Re-enabling and hot updates
@@ -232,8 +254,8 @@ automatically synchronize the active adapter and credential; settings and
 persisted statistics are retained. These paths have passed isolated CLI Web
 acceptance; Desktop remains unverified.
 
-Updates run from **Plugins → ClinePass updates**. The settings shortcut opens
-this bundle's detail page; return to the Plugins list to select that tab. GitHub
+Settings shows only the running plugin version and repository link. Updates
+run from **Plugins → ClinePass updates**. GitHub
 targets always use this repository and a checked commit. Local directories,
 archives and registry installs require an explicit target; local updates accept
 an absolute `.tgz`/`.tar.gz` produced by `npm pack`. The host inspects and installs

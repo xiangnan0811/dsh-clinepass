@@ -55,7 +55,6 @@ function ModelsSection({
       inputMode: override.inputMode || 'inherit',
       reasoningMode: override.reasoningMode || 'inherit',
       defaultReasoning: override.defaultReasoning || 'inherit',
-      upstreamProvider: config.upstreamPins?.find((row) => row.model === model.id)?.provider || '',
     })
   }
 
@@ -161,21 +160,7 @@ function ModelsSection({
           ),
         ),
         editing === model.id && form ? React.createElement('div', { className: 'cb-editor' },
-            React.createElement('div', { className: 'cb-editor-note' },
-              React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('pin.label')),
-                React.createElement('input', { className: 'cb-input', value: form.upstreamProvider, placeholder: 'deepseek', autoCapitalize: 'none', spellCheck: false, disabled: !!busy,
-                  onChange: (event) => setForm({ ...form, upstreamProvider: event.target.value }) })),
-              React.createElement('div', { className: 'cb-section-desc' }, t('pin.hint')),
-              React.createElement('div', { className: 'cb-row' },
-                React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: async () => {
-                  const result = await saveModelPatch({ upstreamPin: { model: model.id, provider: form.upstreamProvider.trim() } })
-                  if (result) setNotice({ id: model.id, ok: result.ok, text: result.message })
-                } }, t('pin.save')),
-                React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: async () => {
-                  const result = await saveModelPatch({ upstreamPin: { model: model.id, provider: '' } })
-                  if (result?.ok) setForm({ ...form, upstreamProvider: '' })
-                  if (result) setNotice({ id: model.id, ok: result.ok, text: result.message })
-                } }, t('pin.clear')))),
+            React.createElement('div', { className: 'cb-editor-note' }, React.createElement(UpstreamPinEditor, { model: model.id, config, busy, saveModelPatch, t })),
             model.channelListed && !model.vendorReasoningNote ? null : React.createElement('div', { className: 'cb-section-desc cb-editor-note' }, model.channelListed ? model.vendorReasoningNote : t('models.unlisted_note')),
             React.createElement('div', { className: 'cb-section-desc cb-editor-note' }, t('models.count_hint')),
             React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.context_ph')), React.createElement('input', { className: 'cb-input', value: form.contextWindow, onChange: (event) => setForm({ ...form, contextWindow: event.target.value }) })),

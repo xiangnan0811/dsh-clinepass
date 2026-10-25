@@ -16,6 +16,7 @@ const files = [
   'test/registry.test.js',
   'test/provider-sync.test.js',
   'test/settings-guard.test.js',
+  'test/settings-persistence.test.js',
   'test/request-shape.test.js',
   'test/client-bundle.test.js',
   'test/client-request.test.js',

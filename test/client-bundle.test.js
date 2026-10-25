@@ -65,3 +65,40 @@ test('a hot-loaded bundle replaces its previous stylesheet without duplicating u
   vm.runInContext('ensureCss()', context)
   assert.equal(writes, 1)
 })
+
+test('upstream selection clears a removed model and requires an explicit new choice', () => {
+  const states = [], effects = []
+  let cursor = 0
+  const React = {
+    useState(initial) { const i = cursor++; if (!(i in states)) states[i] = typeof initial === 'function' ? initial() : initial; return [states[i], value => { states[i] = value }] },
+    useEffect(callback) { effects.push(callback) },
+    createElement(type, props, ...children) { return { type, props: props || {}, children: children.flat() } },
+  }
+  const { UpstreamSettings, UpstreamPinEditor } = vm.runInNewContext(readFileSync(new URL('../src/client/components/upstream-settings.js', import.meta.url), 'utf8') + '\n({UpstreamSettings,UpstreamPinEditor})', { React })
+  const custom = { id: 'custom', name: 'Custom' }, fallback = { id: 'other', name: 'Other' }
+  const render = (models, defaultModel = 'custom') => {
+    cursor = 0
+    const tree = UpstreamSettings({ status: { availableModels: models }, config: { defaultModel }, t: key => key })
+    const select = tree.children.find(child => child.type === 'label').children.find(child => child.type === 'select')
+    const editor = tree.children.find(child => child.type === UpstreamPinEditor)
+    return { select, editor }
+  }
+  let view = render([custom, fallback])
+  assert.equal(view.select.props.value, custom.id)
+  for (const effect of effects.splice(0)) effect()
+  view = render([fallback])
+  assert.equal(view.select.props.value, '')
+  assert.equal(view.editor.props.model, '')
+  // Saving is disabled in the same render, before effects clear retained state.
+  const editor = UpstreamPinEditor(view.editor.props)
+  assert.equal(editor.children[0].children[1].props.disabled, true)
+  assert.equal(editor.children[2].children[0].props.disabled, true)
+  for (const effect of effects.splice(0)) effect()
+  view = render([custom, fallback])
+  assert.equal(view.select.props.value, '')
+  view.select.props.onChange({ target: { value: fallback.id } })
+  view = render([custom, fallback])
+  assert.equal(view.editor.props.model, fallback.id)
+  states.length = 0
+  assert.equal(render([fallback]).select.props.value, '')
+})

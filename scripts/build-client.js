@@ -23,6 +23,7 @@ const files = [
   'components/quota-section.js',
   'token-count.js',
   'components/model-tools.js',
+  'components/upstream-settings.js',
   'components/models-section.js',
   'components/native-model-editor.js',
   'components/upstream-observation.js',

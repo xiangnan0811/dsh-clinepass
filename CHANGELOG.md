@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.1 — 2026-10-25
+
+Fix settings saves when retired configuration keys such as `modelContextOverrides`
+remain on disk: submit only current editable fields and preserve old raw values.
+Simplify the settings header to version and repository. Give disclosures explicit
+spacing, remove negative description margins, unify form sizes and add a visible
+upstream-pin section while retaining model-editor access.
+
+Add separate uncached input, output, cache-read and cache-write rates. Old rates
+remain incomplete until cache prices are supplied. Estimates price disjoint token
+categories and keep missing measurements unknown, including native session replay.
+Clarify ClinePass model search versus the unverified standalone search adapter;
+keep the latter experimental and document DeepSeek Search / Fetch pricing.
+
+Preserve top-level `cached_tokens` through native settlements and shared metering.
+Contradictory token counts remain unmeasured without failing the model reply;
+session projection checkpoints refold under the new consistency rules. Removing
+the selected upstream model clears the form and requires a new explicit choice.
+
 ## 0.7.0
 
 Add strict per-model ClinePass upstream provider pins in the model editor and

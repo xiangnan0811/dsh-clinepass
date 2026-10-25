@@ -503,8 +503,10 @@ function SettingsPage(props) {
       React.createElement('span', { className: `cb-badge ${isRegistered ? 'cb-badge-ok' : 'cb-badge-warn'}` }, isRegistered ? t('badge.registered', { count: enabledCount }) : t('badge.not_registered')),
     ),
 
-    // In-app Update Bar
-    React.createElement(UpdatePanel, { t, openPluginUpdates: props.openPluginUpdates }),
+    React.createElement('div', { className: 'cb-plugin-info' },
+      React.createElement('strong', null, 'ClinePass'),
+      React.createElement('span', { className: 'cb-badge' }, t('settings.version', { version: status.pluginVersion || '—' })),
+      React.createElement('a', { href: 'https://github.com/xiangnan0811/dsh-clinepass', target: '_blank', rel: 'noreferrer' }, 'github.com/xiangnan0811/dsh-clinepass')),
 
     // Notifications
     scopeNote ? React.createElement('div', { className: 'cb-banner-warning' }, scopeNote) : null,
@@ -535,6 +537,7 @@ function SettingsPage(props) {
     React.createElement(DisplaySettings, { status, draft, busy, saveSettings, t }),
     React.createElement(SearchSettings, { status, draft, busy, saveSettings, t }),
     React.createElement(ProxySection, { status, draft, busy, saveSettings, reload: load, t }),
+    React.createElement(UpstreamSettings, { status, config: draft, busy, saveModelPatch, t }),
 
     // Quota Warning & Dashboard Card
     React.createElement(QuotaSection, { keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t }),

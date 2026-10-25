@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { realpathSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
+import vm from 'node:vm'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -25,7 +26,7 @@ const protocol = await import(pathToFileURL(join(dshLib, '../node_modules/@earen
 const deps = { ...pi, ...llm, ...protocol }
 const model = 'cline-pass/deepseek-v4.1-flash'
 
-async function mock(t, { reportUsage = true, provider, lateProvider = false, directProvider = false } = {}) {
+async function mock(t, { reportUsage = true, provider, lateProvider = false, directProvider = false, cacheWrite, usage } = {}) {
   const calls = []
   const server = http.createServer(async (req, res) => {
     const parts = []; for await (const part of req) parts.push(part)
@@ -37,7 +38,7 @@ async function mock(t, { reportUsage = true, provider, lateProvider = false, dir
         ...(report && directProvider ? { provider } : {}),
         choices: [{ index: 0, delta: { ...delta, ...(report && !directProvider ? { provider_metadata: { gateway: { routing: { finalProvider: provider } } } } : {}) }, finish_reason }] })}\n\n`
     }
-    res.end(chunk({ role: 'assistant', content: 'pong' }) + chunk({}, 'stop') + (reportUsage ? `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, prompt_tokens_details: { cached_tokens: 5 }, completion_tokens_details: { reasoning_tokens: 1 } } })}\n\n` : '') + 'data: [DONE]\n\n')
+    res.end(chunk({ role: 'assistant', content: 'pong' }) + chunk({}, 'stop') + (reportUsage ? `data: ${JSON.stringify({ choices: [], usage: usage ?? { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, prompt_tokens_details: { cached_tokens: 5, cache_write_tokens: cacheWrite }, completion_tokens_details: { reasoning_tokens: 1 } } })}\n\n` : '') + 'data: [DONE]\n\n')
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   t.after(() => { server.closeAllConnections(); return new Promise((resolve) => server.close(resolve)) })
@@ -273,6 +274,91 @@ test('absent wire usage stays absent from native settlements and their replay pr
   const result = [header, settled].reduce((snapshot, event) => clinepassUsageProjection.apply(snapshot, event), clinepassUsageProjection.init())
   assert.equal(result.view.models[model].calls, 1)
   assert.equal(result.view.models[model].measurements.totalTokens.samples, 0)
+})
+
+test('native session usage preserves measured cache writes and missing cache counts through replay', async (t) => {
+  for (const cacheWrite of [undefined, 0, 4]) {
+    const upstream = await mock(t, { cacheWrite })
+    const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [] }
+    const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-key', getAttachments: () => undefined, getFs: () => undefined })
+    const service = await runtime(t, adapter)
+    const prepared = await service.prepareCall({ provider: 'clinebot', model })
+    const chunks = await Array.fromAsync(prepared.stream({ ...prepared.config, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
+    const usage = chunks.find(chunk => chunk.type === 'usage').usage
+    assert.equal(usage.cacheReadTokens, 5)
+    assert.equal(usage.cacheWriteTokens, cacheWrite)
+    assert.equal(usage.inputTokens, 15 - (cacheWrite ?? 0))
+    assert.equal(usage.outputTokens, 3)
+    const event = JSON.parse(JSON.stringify({ type: 'assistant/message', data: { turn: 0, step: 0, message: { source: { provider: 'clinebot', model } }, usage, stream: [] } }))
+    const replay = clinepassUsageProjection.apply(clinepassUsageProjection.init(), event).view.models[model]
+    assert.equal(replay.measurements.cacheWriteTokens.samples, cacheWrite === undefined ? 0 : 1)
+    assert.equal(replay.measurements.cacheWriteTokens.sum, cacheWrite ?? 0)
+  }
+})
+
+test('native cache aliases reach session estimates; contradictory wire samples do not', async (t) => {
+  const estimate = vm.runInNewContext(readFileSync(new URL('../src/client/usage-surfaces.js', import.meta.url), 'utf8') + '\nsessionEstimate', { require: () => ({}) })
+  const rates = { costRates: [{ model, inputPerMillion: 2, outputPerMillion: 10, cacheReadPerMillion: 0.2, cacheWritePerMillion: 2.5 }] }
+  const valid = { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, prompt_tokens_details: { cache_write_tokens: 0 } }
+  for (const scenario of [
+    { name: 'top-level cache', usage: { ...valid, cached_tokens: 5 }, input: 15, cache: 5 },
+    { name: 'DeepSeek cache', usage: { ...valid, prompt_cache_hit_tokens: 5, prompt_cache_miss_tokens: 15 }, input: 15, cache: 5 },
+    { name: 'explicit zero cache', usage: { ...valid, cached_tokens: 0 }, input: 20, cache: 0 },
+    { name: 'creation alias with read', usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, cached_tokens: 5, cache_creation_input_tokens: 4 }, input: 11, cache: 5, write: 4 },
+    { name: 'creation alias without read', usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23, cache_creation_input_tokens: 4 }, partial: true, input: 16, write: 4 },
+    { name: 'cache exceeds prompt', usage: { ...valid, prompt_tokens: 5, total_tokens: 8, cached_tokens: 10 }, invalid: true },
+    { name: 'write exceeds prompt', usage: { ...valid, cached_tokens: 5, prompt_tokens_details: { cache_write_tokens: 25 } }, invalid: true },
+    { name: 'explicit input contradicts prompt', usage: { ...valid, prompt_cache_hit_tokens: 5, prompt_cache_miss_tokens: 20 }, invalid: true },
+    { name: 'contradictory total', usage: { ...valid, cached_tokens: 5, total_tokens: 999 }, invalid: true },
+    { name: 'absent cache remains partial', usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23 }, partial: true },
+  ]) await t.test(scenario.name, async (t) => {
+    const upstream = await mock(t, { usage: scenario.usage })
+    const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [] }
+    const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-key', getAttachments: () => undefined, getFs: () => undefined })
+    const service = await runtime(t, adapter)
+    const prepared = await service.prepareCall({ provider: 'clinebot', model })
+    const chunks = await Array.fromAsync(prepared.stream({ ...prepared.config, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
+    assert.equal(chunks.at(-1).reason.kind, 'stop')
+    assert.ok(chunks.some(chunk => chunk.type === 'text-delta' && chunk.text === 'pong'))
+    const usage = chunks.find(chunk => chunk.type === 'usage')?.usage
+    const event = JSON.parse(JSON.stringify({ type: 'assistant/message', data: { turn: 0, step: 0, message: { source: { provider: 'clinebot', model } }, usage, stream: [] } }))
+    const projected = clinepassUsageProjection.apply(clinepassUsageProjection.init(), event).view
+    const result = estimate(projected, rates)
+    if (scenario.invalid) {
+      assert.equal(usage, undefined)
+      assert.equal(result.tokens, null)
+      assert.equal(result.amount, null)
+    } else if (scenario.partial) {
+      assert.equal(result.tokens, 23)
+      assert.equal(result.amount, null)
+      assert.equal(usage.cacheReadTokens, undefined)
+      assert.equal(usage.cacheWriteTokens, scenario.write)
+      assert.equal(usage.inputTokens, scenario.input ?? 20)
+    } else {
+      assert.equal(usage.inputTokens, scenario.input)
+      assert.equal(usage.cacheReadTokens, scenario.cache)
+      assert.equal(usage.cacheWriteTokens, scenario.write ?? 0)
+      assert.equal(result.tokens, 23)
+      assert.ok(Math.abs(result.amount - (scenario.input * 2 + 3 * 10 + scenario.cache * 0.2 + (scenario.write ?? 0) * 2.5) / 1000000) < 1e-12)
+    }
+  })
+})
+
+test('native projection restore refolds old checkpoints under current usage rules', () => {
+  const { SessionProjectionRegistry } = require('@deepseek-ai/dsh-session-projection')
+  const registry = Object.assign(Object.create(SessionProjectionRegistry.prototype), { registrations: new Map([[clinepassUsageProjection.key, { def: clinepassUsageProjection }]]) })
+  const event = { seq: 0, type: 'assistant/message', data: { turn: 0, step: 0, message: { source: { provider: 'clinebot', model } }, stream: [], usage: { inputTokens: 15, cacheReadTokens: 5, cacheWriteTokens: 0, outputTokens: 3, totalTokens: 23 } } }
+  const old = clinepassUsageProjection.apply(clinepassUsageProjection.init(), event)
+  const checkpoint = { clinepassUsage: { ver: 1, seq: 0, val: old } }
+  // Legacy native records omit zero cache-write counters. The authoritative
+  // total still bounds every known input component when that field is absent.
+  delete event.data.usage.cacheWriteTokens
+  event.data.usage.totalTokens = 8
+  assert.equal(registry.restoreFloor(checkpoint), 0)
+  const restored = registry.restore(checkpoint, [event], 0, {}, 0)
+  assert.equal(restored.snapshot.values.clinepassUsage.models[model].calls, 1)
+  assert.equal(restored.snapshot.values.clinepassUsage.models[model].measurements.totalTokens.samples, 0)
+  assert.equal(restored.checkpoint.clinepassUsage.ver, 2)
 })
 
 test('native streaming probes are metered once as diagnostics and their metadata stays local', async (t) => {
