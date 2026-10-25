@@ -7,7 +7,7 @@ import test from 'node:test'
 import { getAllModels } from '../lib/models.js'
 import { buildProviderPayload } from '../lib/provider-payload.js'
 import { smokeChat } from '../lib/cline-client.js'
-import { applyUpstreamPin, reportedUpstreams, upstreamPinFailure } from '../lib/upstream-pin.js'
+import { applyUpstreamPin, reportedUpstreams, upstreamPinFailure, reportedRoutingEvidence } from '../lib/upstream-pin.js'
 
 const dshLib = dirname(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
 const piEntry = join(dshLib, '../node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js')
@@ -119,13 +119,26 @@ test('pin metadata uses the actual final provider, never content or provider att
   assert.deepEqual(pinned.providerOptions.other, { keep: true })
 })
 
+test('routing details retain split metadata but cannot promote a private upstream to a match', () => {
+  const first = reportedRoutingEvidence({ id: 'chatcmpl-1017', model: 'vmc/deepseek-v4p1-flash-1017', choices: [] })
+  const payload = { choices: [{ delta: { content: 'PRIVATE_PROMPT', provider_metadata: {
+    gateway: { routing: { finalProvider: 'openai-compatible-private', canonicalSlug: 'private/flash', resolvedProvider: 'deepseek', planningReasoning: 'PRIVATE_PLAN', providerAttempts: [{ provider: 'deepseek' }] } },
+    deepseek: { systemFingerprint: 'native-fingerprint' },
+  } } }] }
+  const evidence = reportedRoutingEvidence(payload, first)
+  assert.deepEqual(evidence, { responseId: 'chatcmpl-1017', responseModel: 'vmc/deepseek-v4p1-flash-1017', canonicalModel: 'private/flash', resolvedProvider: 'deepseek', deepseekFingerprint: 'native-fingerprint' })
+  assert.equal(upstreamPinFailure('deepseek', reportedUpstreams(payload)[0]).code, 'UPSTREAM_PIN_MISMATCH')
+  assert.deepEqual(reportedRoutingEvidence({ id: 'x'.repeat(257), model: 'text with spaces', system_fingerprint: 'gateway-fingerprint' }, first), first)
+  assert.doesNotMatch(JSON.stringify(evidence), /PRIVATE|providerAttempts/)
+})
+
 test('smoke requests apply model pins and require matching structured provider metadata', async () => {
   for (const provider of ['deepseek', 'openai_compatible_private', undefined]) {
     let sent
     const result = await smokeChat('https://example.test/v1', 'fake-key', { model: 'cline-pass/deepseek-v4.1-flash', upstreamPin: 'deepseek',
       fetchImpl: async (_url, options) => {
         sent = JSON.parse(options.body)
-        return new Response(JSON.stringify({ data: { provider, choices: [{ message: { content: 'pong' } }], usage: { prompt_tokens: 8, completion_tokens: 2 } } }))
+        return new Response(JSON.stringify({ data: { id: 'smoke-response', model: 'vmc/flash', provider, choices: [{ message: { content: 'pong' } }], usage: { prompt_tokens: 8, completion_tokens: 2 } } }))
       },
     })
     assert.deepEqual(sent.providerOptions.gateway.only, ['deepseek'])
@@ -133,5 +146,7 @@ test('smoke requests apply model pins and require matching structured provider m
     assert.equal(result.ok, provider === 'deepseek')
     if (provider !== 'deepseek') assert.equal(result.errorCode, provider ? 'UPSTREAM_PIN_MISMATCH' : 'UPSTREAM_PIN_UNVERIFIED')
     assert.equal(result.usage.prompt_tokens, 8)
+    assert.equal(result.routingEvidence.responseModel, 'vmc/flash')
+    if (result.ok) assert.equal(result.model, 'cline-pass/deepseek-v4.1-flash')
   }
 })

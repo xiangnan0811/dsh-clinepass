@@ -131,6 +131,22 @@ test('SSE keepalive and role frames do not commit before a fragmented error; ret
   assert.equal(typeof record.ttftMs, 'number')
 })
 
+test('proxy routing details stay with their own attempt when a retry has no identifiers', async (t) => {
+  const f = await fixture(t, (call, res) => {
+    res.setHeader('Content-Type', 'text/event-stream')
+    if (call.account === 'first') res.end(frame({ role: 'assistant' }, { id: 'first-response', model: 'vmc/first' }) + 'data: {"error":{"code":"rate_limit_exceeded"}}\n\n')
+    else res.end(frame({ content: 'pong' }) + terminal)
+  })
+  const response = await f.send({ stream: true })
+  await response.text()
+  const record = await f.record()
+  assert.equal(record.ok, true)
+  assert.equal(record.attempts.length, 2)
+  assert.deepEqual(record.attempts[0].routingEvidence, { responseId: 'first-response', responseModel: 'vmc/first' })
+  assert.equal(record.attempts[1].routingEvidence, null)
+  assert.equal(record.routingEvidence, null)
+})
+
 test('a tool call commits the stream and a later disconnect cannot replay to another account', async (t) => {
   const f = await fixture(t, (_call, res) => {
     res.setHeader('Content-Type', 'text/event-stream')

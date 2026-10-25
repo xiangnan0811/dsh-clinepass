@@ -13,7 +13,7 @@ DeepSeek Harness 的 ClinePass 插件，维护在这个仓库：
 
 ## 从本仓库安装
 
-`0.7.1` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
+`0.7.2` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
 
 DeepSeek Harness 通过 pnpm 安装插件。GitHub 地址就够用：
 
@@ -49,7 +49,7 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 
 `api.cline.bot` 的 `GET /api/v1/models` 返回 404。有密钥时，发现走 `GET /users/me/plan`。`cline-pass/deepseek-v4.1-flash` 是普通 ClinePass 模型，也是默认冒烟模型。
 
-`0.7.1` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
+`0.7.2` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
 
 宿主提供 `connection.requestRejection` 时，全部 `/dsh-clinebot/*` 接口都要求 DSH 登录认证，包括读取和更新检查。请通过 `dsh web` 打印的地址登录。未认证返回 401，宿主或来源校验失败返回 403；设置写入仍保留来源校验。
 
@@ -86,9 +86,15 @@ dsh-clinebot:
 
 ```yaml
 upstreamPins:
-  - model: cline-pass/deepseek-v4.1-flash
+  - model: cline-pass/deepseek-v4.1-flash-1017
     provider: deepseek
 ```
+
+`0.7.2` 新增独立的 **DeepSeek V4.1 Flash 1017** 条目；旧模型、默认值、会话选择和已有钉选保持原 ID。该快照已列于 [Cline 官方推荐接口](https://api.cline.bot/api/v1/ai/cline/recommended-models)（2026-10-25）；图像、思考、1M 上下文及 384K 输出能力依据 [DeepSeek 官方文档](https://api-docs.deepseek.com/quick_start/pricing/)，不是 ClinePass 实测上限。请求预算仍默认 65536。
+
+稳定别名与日期快照可能走不同路由。验证时先勾选 `cline-pass/deepseek-v4.1-flash-1017`，为这个完整 ID 单独保存 `deepseek` 限制，再在“流式模型测速”中明确选择它。仅修改冒烟默认模型不会切换现有会话；正常聊天需在会话模型选择器中主动选择快照。若开启套餐过滤，快照还必须出现在当前账号已发现的套餐列表中。网关是否执行限制以当前账号的响应为准，插件不自动改模型或发探测请求。
+
+测速和请求历史的“响应路由详情”显示响应 ID、返回模型、网关规范模型、解析供应商及 DeepSeek 命名空间指纹（仅限实际返回的字段），便于区分请求模型和网关映射。它们不替代最终上游核对；匿名私有渠道不会被当作 `deepseek` 放行。记录仅保留有界标识，不保存完整规划说明、请求头或正文，旧记录不补猜。冒烟统计按请求模型归属，返回模型单独展示。
 
 插件启用期间，原生直连／代理聊天、标题／压缩等辅助调用、流式测速和冒烟测试均遵守限制。直连在准备调用时固定配置，代理使用请求进入代理时的配置；切换账号重试仍保留同一供应商限制，不请求回退到其他供应商。请求同时携带 `provider.only` 与 `providerOptions.gateway.only`，分别覆盖 OpenRouter 和网关规划器；`zai`／`z-ai` 按各自协议拼写。不会自动枚举供应商或发出探测请求。
 

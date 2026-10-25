@@ -111,6 +111,19 @@ test('composer routing records isolate sessions and ignore cancelled late respon
   assert.equal(requests[1].signal.aborted, true)
 })
 
+test('routing details show returned identifiers separately without changing the mismatch result', () => {
+  const React = { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) }
+  const component = vm.runInNewContext(readFileSync(new URL('../src/client/components/upstream-observation.js', import.meta.url), 'utf8') + '\nUpstreamObservation', { React })
+  const t = key => key
+  const view = component({ record: { upstreamPin: 'deepseek', upstream: 'openai-compatible-private', upstreamPinStatus: 'mismatch', routingEvidence: { responseModel: 'vmc/flash', resolvedProvider: 'deepseek', planningReasoning: 'SECRET_PLAN' } }, t })
+  const text = JSON.stringify(view)
+  assert.match(text, /routing.state_mismatch/)
+  assert.match(text, /vmc\/flash/)
+  assert.match(text, /routing.evidence_hint/)
+  assert.doesNotMatch(text, /SECRET_PLAN|routing.state_matched/)
+  assert.doesNotMatch(JSON.stringify(component({ record: {}, t })), /routing.evidence_hint/)
+})
+
 test('reset countdown distinguishes a future reset, reset in progress, and missing time', () => {
   const reset = vm.runInNewContext(readFileSync(new URL('../src/client/progress-bar.js', import.meta.url), 'utf8') + '\nresetCountdown')
   assert.equal(reset('2026-10-19T00:01:01Z', Date.parse('2026-10-19T00:00:00Z')).time, '1m 1s')

@@ -92,7 +92,8 @@ test('upstream selection clears a removed model and requires an explicit new cho
   // Saving is disabled in the same render, before effects clear retained state.
   const editor = UpstreamPinEditor(view.editor.props)
   assert.equal(editor.children[0].children[1].props.disabled, true)
-  assert.equal(editor.children[2].children[0].props.disabled, true)
+  const actions = editor.children.find(child => child?.props?.className === 'cb-row')
+  assert.equal(actions.children.find(child => child.children.includes('pin.save')).props.disabled, true)
   for (const effect of effects.splice(0)) effect()
   view = render([custom, fallback])
   assert.equal(view.select.props.value, '')

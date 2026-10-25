@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.2 — 2026-10-25
+
+Add `cline-pass/deepseek-v4.1-flash-1017` as a separate catalog model with DeepSeek
+reasoning/image capabilities and an independent upstream pin. Preserve stable IDs,
+defaults, selections, saved overrides and pins. Explain how to select and probe the
+snapshot without claiming live account routing or changing the user's model.
+
+Persist bounded response IDs, returned/canonical models, resolved providers and
+DeepSeek metadata fingerprints across direct, proxy and smoke paths. Expose them
+in probe and request-history details, including strict pin failures and per-account
+attempts. These details never override final-provider verification. Keep smoke
+statistics attributed to the requested model when the gateway returns a virtual ID.
+
 ## 0.7.1 — 2026-10-25
 
 Fix settings saves when retired configuration keys such as `modelContextOverrides`

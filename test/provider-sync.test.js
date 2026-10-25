@@ -272,10 +272,11 @@ test('a missing API key still publishes the selected catalog', async () => {
     let stored
     for (let i = 0; i < 50; i += 1) {
       stored = holder.settings.get('llm-pi-ai')
-      if ((stored?.providers?.clinebot?.models || []).length >= 16) break
+      if ((stored?.providers?.clinebot?.models || []).length >= 17) break
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-    assert.equal(stored.providers.clinebot.models.length, 16)
+    assert.equal(stored.providers.clinebot.models.length, 17)
+    assert.ok(stored.providers.clinebot.models.some(model => model.id === 'cline-pass/deepseek-v4.1-flash-1017'))
     assert.equal(stored.providers.clinebot.baseURL, 'https://api.cline.bot/api/v1')
     assert.equal(stored.providers.other.apiKeyEnv, 'OTHER_KEY')
     const flash = stored.providers.clinebot.models.find((model) => model.id === 'cline-pass/deepseek-v4.1-flash')
@@ -350,10 +351,11 @@ test('0.1.7 settings without register still publishes the selected catalog', asy
     let stored
     for (let i = 0; i < 50; i += 1) {
       stored = docs['llm-pi-ai']
-      if ((stored?.providers?.clinebot?.models || []).length >= 16) break
+      if ((stored?.providers?.clinebot?.models || []).length >= 17) break
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-    assert.equal(stored.providers.clinebot.models.length, 16)
+    assert.equal(stored.providers.clinebot.models.length, 17)
+    assert.ok(stored.providers.clinebot.models.some(model => model.id === 'cline-pass/deepseek-v4.1-flash-1017'))
     assert.equal(stored.providers.other.apiKeyEnv, 'OTHER_KEY')
   } finally {
     await ctx.fiber?.dispose?.()

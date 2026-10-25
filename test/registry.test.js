@@ -21,6 +21,27 @@ import path from 'node:path'
 
 const PLAN = 'Includes Kimi K3, GLM 5.2, DeepSeek V4.1 Flash, and DeepSeek V4 Flash.'
 
+test('1017 is a distinct supported model without migrating stable selections, budgets or pins', () => {
+  const stable = 'cline-pass/deepseek-v4.1-flash', snapshot = `${stable}-1017`
+  const cfg = Config({ defaultModel: stable, selectionKind: 'explicit', explicitModels: [stable],
+    upstreamPins: [{ model: stable, provider: 'deepseek' }],
+    customModels: [{ id: snapshot, name: 'My snapshot' }],
+    modelOverrides: [{ id: snapshot, requestOutputBudget: 2048 }] })
+  const rows = getAllModels(cfg), row = rows.find((item) => item.id === snapshot)
+  assert.equal(rows.filter((item) => item.id === snapshot).length, 1)
+  assert.equal(cfg.customModels[0].name, 'My snapshot')
+  assert.equal(row.known, true)
+  assert.deepEqual(row.input, ['text', 'image'])
+  assert.deepEqual(row.reasoningLevelIds, ['low', 'high', 'max'])
+  assert.equal(row.compat.thinkingFormat, 'deepseek')
+  assert.equal(row.requestOutputBudget, 2048)
+  assert.equal(row.outputCapability, 393216)
+  assert.deepEqual(selectedIds(rows, cfg), [stable])
+  assert.equal(cfg.defaultModel, stable)
+  assert.deepEqual(cfg.upstreamPins, [{ model: stable, provider: 'deepseek' }])
+  assert.deepEqual(parsePlanIncludedModels('Includes DeepSeek V4.1 Flash 1017, DeepSeek V4.1 Flash').map((item) => item.id), [snapshot, stable])
+})
+
 test('plan names keep decimal points and use the alias table', () => {
   const found = parsePlanIncludedModels(PLAN)
   const ids = found.map((model) => model.id)

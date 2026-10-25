@@ -95,7 +95,8 @@ test('native preparation freezes per-model defaults, preserves explicit controls
   assert.equal(upstream.calls[2].body.reasoning_effort, undefined)
 })
 
-test('native pins reach the wire, survive preparation and report actual upstream through the probe', async (t) => {
+test('native 1017 pins reach the wire, survive preparation and report actual upstream through the probe', async (t) => {
+  const model = 'cline-pass/deepseek-v4.1-flash-1017'
   const upstream = await mock(t, { provider: 'deepseek', lateProvider: true })
   const pins = [{ model, provider: 'deepseek' }]
   const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [], upstreamPins: pins }
@@ -110,6 +111,7 @@ test('native pins reach the wire, survive preparation and report actual upstream
   assert.deepEqual(upstream.calls[0].body.providerOptions.gateway, { only: ['deepseek'], order: ['deepseek'] })
   assert.equal(upstream.calls[0].body.reasoning_effort, 'high')
   assert.equal(upstream.calls[0].body.max_tokens, 1234)
+  assert.equal(upstream.calls[0].body.model, model)
   state.upstreamPins = pins
   const probe = createModelProbe({ inject(_deps, callback) { callback({ llm: service }) } }, { live: () => ({}), probeRequests, dispatchMetadata })
   const result = await probe.run(model)
@@ -145,6 +147,8 @@ test('native strict pins fail on ignored, absent and late mismatched routing wit
     assert.equal(records[0].upstreamPin, 'deepseek')
     assert.equal(records[0].upstreamPinAttached, true)
     assert.equal(records[0].upstream, scenario.provider || '')
+    assert.equal(records[0].routingEvidence.responseId, 'native-test')
+    assert.equal(records[0].attempts[0].routingEvidence.responseId, 'native-test')
   })
 })
 
@@ -206,6 +210,8 @@ test('native proxy probes preserve pin failures before and after first output', 
     assert.equal(result.upstreamPin, scenario.configuredProvider || 'deepseek')
     assert.equal(result.upstreamPinAttached, true)
     assert.equal(result.upstreamPinStatus, scenario.code === 'UPSTREAM_PIN_MISMATCH' ? 'mismatch' : scenario.code ? 'unverified' : 'matched')
+    assert.equal(result.routingEvidence.responseId, 'native-test')
+    assert.equal(result.routingEvidence.responseModel, model)
     assert.equal(upstream.calls.length, 1)
     assert.equal(records[0].ok, !scenario.code)
     assert.equal(records[0].upstreamPinAttached, true)

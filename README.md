@@ -14,7 +14,7 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-Version `0.7.1` requires DeepSeek Harness `^0.2.1-rc.2`.
+Version `0.7.2` requires DeepSeek Harness `^0.2.1-rc.2`.
 
 DeepSeek Harness installs plugins with pnpm. A GitHub spec is enough:
 
@@ -99,7 +99,7 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
 `GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass
 id. The default smoke model is that id.
 
-Version `0.7.1` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+Version `0.7.2` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
 require DSH authentication, including reads and update checks. Open the URL
@@ -163,9 +163,30 @@ For configuration files, use:
 
 ```yaml
 upstreamPins:
-  - model: cline-pass/deepseek-v4.1-flash
+  - model: cline-pass/deepseek-v4.1-flash-1017
     provider: deepseek
 ```
+
+Version 0.7.2 adds **DeepSeek V4.1 Flash 1017** as a separate model. Existing model
+IDs, defaults, session selections and pins are not migrated. The dated ID appears
+in [Cline's recommended catalog](https://api.cline.bot/api/v1/ai/cline/recommended-models)
+(2026-10-25). Vision, reasoning, 1M context and 384K output capabilities follow
+[DeepSeek's vendor documentation](https://api-docs.deepseek.com/quick_start/pricing/),
+not measured ClinePass limits. The default request budget remains 65536.
+
+Stable and dated IDs can use different gateway routes. Enable the dated model,
+save a separate `deepseek` pin for its full ID, then explicitly select it in the
+streaming probe. Changing the smoke-test default does not switch existing sessions;
+select the snapshot in each session when ready. Verified-plan filtering can hide
+it if the account's discovered plan list omits it. Gateway enforcement still needs
+account-specific verification; no automatic model rewrite or probe is performed.
+
+Probes and request history expose response routing details when reported: response
+ID, returned model, canonical gateway model, resolved provider and the DeepSeek
+metadata fingerprint. These bounded identifiers aid diagnosis but never replace
+the final-provider check or make an anonymous private provider match `deepseek`.
+Full planning text, headers and content are excluded; old records are not inferred.
+Smoke statistics retain the requested model; the returned model is a separate field.
 
 Pins apply while this plugin is enabled to native direct/proxy chat, auxiliary
 model calls, streaming probes and smoke tests. Direct calls freeze the pin when

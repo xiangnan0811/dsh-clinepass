@@ -12,6 +12,8 @@ function UpstreamPinEditor({ model, config, busy, saveModelPatch, t }) {
     React.createElement('label', { className: 'cb-field' }, t('pin.label'),
       React.createElement('input', { className: 'cb-input', value: provider, placeholder: 'deepseek', autoCapitalize: 'none', spellCheck: false, disabled: !!busy || !model, onChange: (event) => setProvider(event.target.value) })),
     React.createElement('p', { className: 'cb-section-desc' }, t('pin.hint')),
+    model === 'cline-pass/deepseek-v4.1-flash' || model === 'cline-pass/deepseek-v4.1-flash-1017'
+      ? React.createElement('p', { className: 'cb-section-desc' }, t('pin.snapshot_hint')) : null,
     React.createElement('div', { className: 'cb-row' },
       React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-primary', disabled: !!busy || !model, onClick: () => save(provider.trim()) }, t('pin.save')),
       React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy || !model || !saved, onClick: () => save('') }, t('pin.clear'))),

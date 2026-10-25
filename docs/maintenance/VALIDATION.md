@@ -1,5 +1,42 @@
 # Validation record
 
+## 0.7.2 dated model and routing diagnostics (2026-10-25)
+
+The dated `cline-pass/deepseek-v4.1-flash-1017` is a distinct catalog entry;
+the stable model remains first and remains the default. Existing explicit
+selections, custom configuration, budgets and pins are not rewritten. The
+public Cline recommended-models response on 2026-10-25 lists both IDs. Vendor
+capabilities and the user's live account routing remain separate evidence.
+
+`npm test` passed 197 tests with no failures or skips, including lint and the
+210158-byte production client consistency check. Added regressions cover split
+routing metadata, strict provider checks despite diagnostic fingerprints, per-
+attempt retry isolation, smoke request attribution and persisted bounded fields.
+Legacy records do not gain inferred evidence; free-form routing plans, headers
+and message content are excluded from the new diagnostic object.
+
+The npm archive was installed with `dsh plugin --profile release add` in a fresh
+project-local Linux Web profile, using DSH `0.2.1-rc.2`, Node `24.18.0`, fixture
+credentials and a local HTTP/SSE gateway. Authenticated production routes and the
+installed native adapter passed direct/proxy calls for matching, mismatched and
+missing final-provider metadata. Both pin forms were present on the wire. The
+automatic-routing case reported `baseten`. The requested model stayed the dated
+ID even when the response returned a virtual model ID. Restart preserved the
+stable default, explicit selections, both pins and the diagnostic request records.
+Existing queued-write and native title/auxiliary-path regressions also passed.
+
+An isolated Chromium session loaded this installed host's production client.
+Expanded routing details were checked visually in Chinese/light at 390px and
+English/dark at 1280px; document width matched each viewport and diagnostic values
+did not overflow their columns. The mismatched final provider remained a failure
+even with `resolvedProvider: deepseek` and a DeepSeek fingerprint.
+
+The user's active DSH profile was not installed, restarted or reconfigured, and no
+live inference request was made. Real ClinePass enforcement, billing and Desktop
+acceptance remain unverified; the user will install and test after current work.
+Release SHA, final archive identity and downloaded asset checks belong in the
+release's `RELEASE-VALIDATION.md` asset. Local checks are not represented as CI.
+
 ## 0.7.1 release preparation (2026-10-25)
 
 The user authorized commit, push, tag and GitHub Release after the settings and

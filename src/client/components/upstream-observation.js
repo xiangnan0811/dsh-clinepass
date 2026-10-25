@@ -3,10 +3,17 @@ function UpstreamObservation({ record, t }) {
   const target = typeof record?.upstreamPin === 'string' ? record.upstreamPin || t('pin.auto') : t('routing.unrecorded')
   const attached = record?.upstreamPinAttached === true ? t('routing.attached_yes')
     : record?.upstreamPinAttached === false ? t('routing.attached_no') : t('surface.unknown')
-  return React.createElement('div', { className: 'cb-routing-facts' },
+  const evidence = Object.entries(record?.routingEvidence || {}).filter(([key, value]) =>
+    ['responseId', 'responseModel', 'canonicalModel', 'resolvedProvider', 'deepseekFingerprint'].includes(key) && typeof value === 'string')
+  return React.createElement(React.Fragment, null, React.createElement('div', { className: 'cb-routing-facts' },
     [[t('routing.target'), target], [t('routing.actual'), record?.upstream || t('surface.unknown')],
       [t('routing.attached'), attached], [t('routing.result'), t(`routing.state_${state}`)]].map(([label, value]) =>
-      React.createElement('div', { key: label }, React.createElement('span', null, label), React.createElement('b', null, value))))
+      React.createElement('div', { key: label }, React.createElement('span', null, label), React.createElement('b', null, value)))),
+    evidence.length ? React.createElement('details', { className: 'cb-routing-evidence' },
+      React.createElement('summary', null, t('routing.evidence')),
+      React.createElement('p', { className: 'cb-section-desc' }, t('routing.evidence_hint')),
+      React.createElement('div', { className: 'cb-routing-facts' }, evidence.map(([key, value]) =>
+        React.createElement('div', { key }, React.createElement('span', null, t(`routing.${key}`)), React.createElement('b', null, value))))) : null)
 }
 
 function RoutingHistory({ records, t }) {
