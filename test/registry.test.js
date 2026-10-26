@@ -227,7 +227,8 @@ test('explicit empty selection is empty and disabled is not', () => {
   assert.equal(selectedIds(models, { selectionKind: 'explicit', explicitModels: [] }).length, 0)
   const disabled = selectedIds(models, { selectionKind: 'all-except-disabled', disabledModels: ['cline-pass/glm-5.2'] })
   assert.equal(disabled.includes('cline-pass/glm-5.2'), false)
-  assert.ok(disabled.includes('cline-pass/deepseek-v4-flash'))
+  assert.ok(disabled.includes('cline-pass/deepseek-v4.1-flash'))
+  assert.equal(disabled.includes('cline-pass/deepseek-v4-flash'), false)
 })
 
 test('legacy dot-stripped id migrates once and then stays', () => {

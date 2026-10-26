@@ -14,7 +14,7 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-Version `0.7.3` requires DeepSeek Harness `^0.2.1-rc.2`.
+Version `0.7.4` requires DeepSeek Harness `^0.2.1-rc.2`.
 
 DeepSeek Harness installs plugins with pnpm. A GitHub spec is enough:
 
@@ -95,11 +95,39 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   A plan read that has already started cannot put that list back.
   `/cline` prints plain text.
 
-`GET /api/v1/models` on api.cline.bot returns 404. With a key, discovery reads
-`GET /users/me/plan`. `cline-pass/deepseek-v4.1-flash` is a normal ClinePass
-id. The default smoke model is that id.
+As checked on 2026-10-26, Cline exposes public model lists at
+[`/ai/cline/recommended-models`](https://api.cline.bot/api/v1/ai/cline/recommended-models)
+and [`/ai/cline/models`](https://api.cline.bot/api/v1/ai/cline/models).
+The first lists ClinePass IDs; the second supplies API names and reference
+capabilities. `/models` now works and serves as the ID-only fallback.
+Authenticated **Sync plan models** still reads `/users/me/plan` separately.
+The default smoke model remains `cline-pass/deepseek-v4.1-flash`.
 
-Version `0.7.3` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+The current default selection includes GLM 5.3 / 5.3 Flash, Kimi K3.1 Pro,
+MiniMax M3.1 Flash, MiMo V2.6 Flash / Pro, Qwen 3.8 Max, DeepSeek V4.1 Flash
+(stable and 1017), DeepSeek V4 Pro, and Muse Spark 1.3 Contributor. Older
+generations remain editable but are no longer implicitly enabled. Explicit
+selections and a saved legacy default remain usable; IDs, budgets and upstream
+pins are not rewritten. In `all-except-disabled` mode, `explicitModels` also
+retains legacy opt-ins. **Enable all** includes old generations; **Use current
+defaults** clears opt-ins and disabled IDs, retaining a saved default model.
+
+Under **Custom models → Get models from API**, search and select a model to
+fill its exact ID, display name and published context/output/image parameters.
+Only the configured API receives the active credential. Ordinary API IDs are
+shown separately because they do not use the ClinePass subscription lane.
+For an already listed Pass ID, a unique exact vendor-model suffix can supply
+reference parameters; ambiguous matches stay unknown and never create a Pass ID.
+Built-in models can be enabled directly. Saving a custom model also selects it,
+including from an explicit empty selection, and preserves it across account changes.
+The verified-plan filter still applies and is explained beside the selection.
+Manual entry needs only an ID; name and advanced parameters are optional. Blank
+parameters inherit batch/default settings; unknown limits remain unknown. The
+prefilled request budget is at most 65536 and is capped by any published lower
+context/output ceiling. Reasoning levels are never inferred from a generic
+reasoning flag. Discovery makes no inference calls and does not verify plan access.
+
+Version `0.7.4` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
 require DSH authentication, including reads and update checks. Open the URL
@@ -124,7 +152,7 @@ dsh-clinebot:
 | `baseUrl` | `https://api.cline.bot/api/v1` | API the plugin calls |
 | `apiKeyEnv` | `CLINEBOT_API_KEY` | Credential name |
 | `defaultModel` | `cline-pass/deepseek-v4.1-flash` | Smoke test and provider default |
-| `selectionKind` | `all-except-disabled` | Empty `disabledModels` registers the catalog |
+| `selectionKind` | `all-except-disabled` | Enables current models plus explicit legacy opt-ins, excluding `disabledModels`; explicit mode registers only `explicitModels` |
 | `planFilterEnabled` | `false` | Intersects the saved manual selection with a successfully read plan; missing plan data does not clear the selection |
 | `batchModelDefaults` | inherit | Context, output capability and request budget defaults, below individual model overrides |
 | `proxyEnabled` | `false` | Authenticated loopback proxy with account retries before the first model output |

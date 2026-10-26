@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.4 — 2026-10-26
+
+Refresh default model selection against the 2026-10-26 ClinePass API: add Kimi
+K3.1 Pro, MiniMax M3.1 Flash and MiMo V2.6 Flash / Pro. Keep current GLM, Qwen
+and DeepSeek offerings; previous generations remain available for explicit use.
+Preserve explicit selections, saved defaults, per-model budgets and upstream pins.
+
+Add API model discovery with search, separate Pass/API billing lanes and
+name/capability prefilling. A plain `/models` list is the fallback when the rich
+catalog is unavailable. Manual addition requires only an ID; advanced parameters
+are optional. Saving selects the custom model and preserves its declaration
+through account changes. Plan filtering remains independent. Partial failures,
+empty lists and stale configuration responses are handled explicitly.
+
+Wait for initial model synchronization on cold hosts without HMR, so the first
+request after a proxy-enabled restart uses the new loopback address.
+
 ## 0.7.3 — 2026-10-25
 
 Rework the details window and settings layout. Only the details body scrolls under

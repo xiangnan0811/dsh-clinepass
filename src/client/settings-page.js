@@ -365,14 +365,14 @@ function SettingsPage(props) {
     }
   }
 
-  function debounceSaveDisabledModels(nextDisabled) {
+  function debounceSaveDisabledModels(nextDisabled, explicitModels) {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(async () => {
       try {
         const res = await request(`${ROUTE_PREFIX}/models/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ selectionKind: 'all-except-disabled', disabledModels: nextDisabled }),
+          body: JSON.stringify({ selectionKind: 'all-except-disabled', disabledModels: nextDisabled, explicitModels }),
         })
         const data = await res.json().catch(() => ({}))
         if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`)
@@ -424,8 +424,9 @@ function SettingsPage(props) {
     else enabled.add(id)
     const enabledIds = [...enabled]
     const next = all.map((model) => model.id).filter((modelId) => !enabled.has(modelId))
-    setDraft({ ...draft, selectionKind: 'all-except-disabled', disabledModels: next, enabledModels: enabledIds })
-    debounceSaveDisabledModels(next)
+    const explicitModels = all.filter((model) => model.legacy && enabled.has(model.id)).map((model) => model.id)
+    setDraft({ ...draft, selectionKind: 'all-except-disabled', disabledModels: next, explicitModels, enabledModels: enabledIds })
+    debounceSaveDisabledModels(next, explicitModels)
   }
 
   function enabledIdsOf(current, all) {
@@ -433,7 +434,7 @@ function SettingsPage(props) {
       return current.enabledModels || current.explicitModels || []
     }
     const disabled = new Set(current?.disabledModels || [])
-    return all.map((model) => model.id).filter((modelId) => !disabled.has(modelId))
+    return all.filter((model) => !disabled.has(model.id) && (!model.legacy || current?.explicitModels?.includes(model.id) || current?.defaultModel === model.id)).map((model) => model.id)
   }
 
   function handleSetModelsFilter(type) {

@@ -92,7 +92,8 @@ function ModelsSection({
       React.createElement(
         'div',
         { className: 'cb-row' },
-        React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => saveModelPatch({ selectionKind: 'all-except-disabled', disabledModels: [], explicitModels: [] }) }, t('models.enable_all')),
+        React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => saveModelPatch({ selectionAction: 'current' }) }, t('models.current')),
+        React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => saveModelPatch({ selectionAction: 'all' }) }, t('models.enable_all')),
         React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy || !keyPresent, onClick: handleSyncPlanModels }, busy === 'sync-models' ? t('models.syncing') : t('models.sync')),
       )
     ),
@@ -142,6 +143,7 @@ function ModelsSection({
           React.createElement('div', { className: 'cb-model-main' },
             React.createElement('div', { className: 'cb-model-head' },
               React.createElement('strong', null, model.name),
+              model.legacy ? React.createElement('span', { className: 'cb-badge' }, t('models.legacy')) : null,
               React.createElement('button', {
                 type: 'button',
                 className: 'cb-btn cb-btn-sm',

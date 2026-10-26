@@ -21,6 +21,7 @@ const files = [
   'test/client-bundle.test.js',
   'test/client-request.test.js',
   'test/model-management.test.js',
+  'test/model-discovery.test.js',
   'test/key-discovery.test.js',
   'test/session-router.test.js',
   'test/proxy.test.js',

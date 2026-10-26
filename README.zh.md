@@ -13,7 +13,7 @@ DeepSeek Harness 的 ClinePass 插件，维护在这个仓库：
 
 ## 从本仓库安装
 
-`0.7.3` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
+`0.7.4` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
 
 DeepSeek Harness 通过 pnpm 安装插件。GitHub 地址就够用：
 
@@ -47,9 +47,15 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 - 流式模型诊断最多请求 1024 输出 token、期限 30 秒，可取消，显示首个文本／思考／工具输出和总耗时。诊断计入配置档统计，不计入会话回复用量。`/cline ping <model>` 或 `/cline ping default` 使用该诊断；裸 `/cline ping` 保留 API 连通性检查。`/cline account` 查看账户，`/cline use <凭据名>` 钉选，`/cline use auto` 恢复自动路由。
 - 同一张账号卡可以保存额外的 `CLINEBOT_API_KEY_*`。账号名先写入账号池，再保存密钥。密钥没有保存成功时，这个新名字会从账号池去掉。之后的 DSH 对话如果收到 HTTP 429 或 402，会改用下一个已保存的账号。切换账号、这次轮换、修改 API 地址、修改主凭据名，或替换当前正在使用的密钥，都会清掉上一份套餐模型列表，直到下一次成功读到套餐。替换当前密钥时也会删掉已保存的套餐缓存，旧列表不会再从磁盘装回来。已经开始的套餐读取也不能把这份列表装回去。`/cline` 输出纯文本。
 
-`api.cline.bot` 的 `GET /api/v1/models` 返回 404。有密钥时，发现走 `GET /users/me/plan`。`cline-pass/deepseek-v4.1-flash` 是普通 ClinePass 模型，也是默认冒烟模型。
+2026-10-26 已核对 [ClinePass 推荐接口](https://api.cline.bot/api/v1/ai/cline/recommended-models)及[模型详情接口](https://api.cline.bot/api/v1/ai/cline/models)：前者提供订阅型号，后者提供模型名称和参考参数。`GET /api/v1/models` 现在也可用，作为仅含 ID 的回退来源。“同步订阅模型”仍单独读取当前账户的 `/users/me/plan`，默认冒烟模型仍为 `cline-pass/deepseek-v4.1-flash`。
 
-`0.7.3` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
+当前默认启用 GLM 5.3 / 5.3 Flash、Kimi K3.1 Pro、MiniMax M3.1 Flash、MiMo V2.6 Flash / Pro、Qwen 3.8 Max、DeepSeek V4.1 Flash（稳定别名及 1017）、DeepSeek V4 Pro 和 Muse Spark 1.3 Contributor。旧代型号保留供手动启用，不再隐式启用；已有显式选择和旧型号默认项仍可使用，ID、预算和上游钉选不改写。“启用当前默认模型”清除禁用和旧型号选入项，保留已保存的默认型号；“全部注册”包含旧型号。
+
+在“自定义模型 → 从接口获取模型”中搜索并选择型号，即可填入准确 ID、名称、上下文、输出上限和图像能力。只向已配置的 API 发送当前凭据；普通 API 型号单列，避免与 ClinePass 订阅计费混淆。已列出的 Pass 型号仅在供应商型号后缀完全一致且唯一时借用其参考参数，不根据普通 API 型号凭空生成 Pass ID。内置型号可直接启用；自定义型号保存后也会选中，即使此前取消了全部注册。手动添加只需 ID，高级参数可留空继承；未知上限不猜测。预填请求预算最多 65536，若已发布的上下文或输出上限更低则随之降低，不把输出能力上限直接当预算，也不猜测思考档位。
+
+发现列表不修改已验证套餐，不发送推理请求。套餐过滤仍然生效，所选型号被过滤时会提示；用户保存的自定义声明和参数在账户切换后保留。参数预填是接口参考值，不代表已实测该账户的渠道能力。
+
+`0.7.4` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
 
 宿主提供 `connection.requestRejection` 时，全部 `/dsh-clinebot/*` 接口都要求 DSH 登录认证，包括读取和更新检查。请通过 `dsh web` 打印的地址登录。未认证返回 401，宿主或来源校验失败返回 403；设置写入仍保留来源校验。
 
@@ -71,7 +77,7 @@ dsh-clinebot:
 | `baseUrl` | `https://api.cline.bot/api/v1` | 插件请求的 API |
 | `apiKeyEnv` | `CLINEBOT_API_KEY` | 凭据名 |
 | `defaultModel` | `cline-pass/deepseek-v4.1-flash` | 冒烟测试和提供方默认模型 |
-| `selectionKind` | `all-except-disabled` | `disabledModels` 为空时注册目录 |
+| `selectionKind` | `all-except-disabled` | 注册当前型号及明确选入的旧型号，排除 `disabledModels`；显式模式仅注册 `explicitModels` |
 | `planFilterEnabled` | `false` | 将手动选择与成功读取的套餐取交集；缺少套餐数据时不清空选择 |
 | `batchModelDefaults` | 继承 | 上下文、输出能力与请求预算的批量默认值，低于单模型覆盖 |
 | `upstreamPins` | `[]` | 按模型固定 ClinePass 后端供应商，与账户钉选独立 |

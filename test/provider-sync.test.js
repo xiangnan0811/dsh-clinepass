@@ -35,7 +35,7 @@ test('replace-only discovery preserves a pin write already pending before its re
     live: () => cfg, getSettingsApi: () => ({ replace: async next => { cfg = next } }), syncProviderState: async () => {},
   })
   try {
-    for (let i = 0; i < 50 && planWritesPending() < 3; i++) await new Promise(resolve => setImmediate(resolve))
+    for (let i = 0; i < 50 && planWritesPending() < 3; i++) await new Promise(resolve => setTimeout(resolve, 5))
     assert.ok(planWritesPending() >= 3)
     release()
     await Promise.all([blocker, pin, discovery])
@@ -272,10 +272,10 @@ test('a missing API key still publishes the selected catalog', async () => {
     let stored
     for (let i = 0; i < 50; i += 1) {
       stored = holder.settings.get('llm-pi-ai')
-      if ((stored?.providers?.clinebot?.models || []).length >= 17) break
+      if ((stored?.providers?.clinebot?.models || []).length >= 11) break
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-    assert.equal(stored.providers.clinebot.models.length, 17)
+    assert.equal(stored.providers.clinebot.models.length, 11)
     assert.ok(stored.providers.clinebot.models.some(model => model.id === 'cline-pass/deepseek-v4.1-flash-1017'))
     assert.equal(stored.providers.clinebot.baseURL, 'https://api.cline.bot/api/v1')
     assert.equal(stored.providers.other.apiKeyEnv, 'OTHER_KEY')
@@ -351,10 +351,10 @@ test('0.1.7 settings without register still publishes the selected catalog', asy
     let stored
     for (let i = 0; i < 50; i += 1) {
       stored = docs['llm-pi-ai']
-      if ((stored?.providers?.clinebot?.models || []).length >= 17) break
+      if ((stored?.providers?.clinebot?.models || []).length >= 11) break
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-    assert.equal(stored.providers.clinebot.models.length, 17)
+    assert.equal(stored.providers.clinebot.models.length, 11)
     assert.ok(stored.providers.clinebot.models.some(model => model.id === 'cline-pass/deepseek-v4.1-flash-1017'))
     assert.equal(stored.providers.other.apiKeyEnv, 'OTHER_KEY')
   } finally {

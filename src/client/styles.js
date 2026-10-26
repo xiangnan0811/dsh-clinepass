@@ -34,6 +34,7 @@
 .cb-tabs-sm .cb-tab{font-size:12px;line-height:18px;padding:4px 12px}
 
 .cb-pin-editor{display:flex;flex-direction:column;gap:12px;min-width:0}
+.cb-discovery{display:flex;flex-direction:column;gap:12px;min-width:0;padding:14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--cb-fill-soft)}
 .cb-routing-history{display:flex;flex-direction:column;gap:10px;min-width:0}
 .cb-routing-list{display:flex;flex-direction:column;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;overflow:hidden;container-type:inline-size;min-width:0}
 .cb-page .cb-routing-row{border-top:1px solid var(--dsw-alias-border-l2);padding-top:0;min-width:0}.cb-page .cb-routing-row:first-child{border-top:0}

@@ -1,5 +1,55 @@
 # Validation record
 
+## 0.7.4 model catalog and API discovery (2026-10-26)
+
+Read-only requests to the live public Cline API returned HTTP 200 for
+`/api/v1/ai/cline/recommended-models`, `/api/v1/ai/cline/models` and
+`/api/v1/models`. The recommendation response contained 15 Pass IDs, including
+Kimi K3.1 Pro, MiniMax M3.1 Flash and MiMo V2.6 Flash / Pro. Both general lists
+contained 472 rows and no Pass IDs. The production discovery helper produced
+463 choices after removing internal preset/alias entries and combining the
+lists, including the same 15 Pass IDs. This verifies listing and reference
+metadata, not account entitlement, generation, billing or channel limits.
+
+`npm test` passed 209 tests with no failures or skips, including lint and the
+237575-byte production-client consistency check.
+New regressions cover exact unambiguous reference matching, separate billing
+IDs, malformed/empty/partial results, `/models` fallback, response-body deadlines,
+credential-safe errors, authenticated read-only discovery, stale configuration
+rejection, current/legacy selection, explicit-none import, restart, account
+clearing, plan-filter preservation and UI prefilling/ID changes. Existing native
+adapter and settings tests passed with the refreshed selection.
+
+An isolated Chromium loaded the real React components and plugin styles against
+production model routes with a local fixture gateway. Selecting a future model
+filled its name, 128000 context, 32000 output/budget and image input; saving
+registered the ID in the returned enabled selection without verifying a plan.
+Error → retry, valid empty results, partial-source failure and ordinary API ID
+selection were exercised. Chinese light at 390px and dark at 1280px were visually
+checked; controls remained within the viewport. Host theme variables were
+supplied by the fixture. This was component/route browser acceptance, not a new
+installed-host browser or Desktop acceptance run.
+
+The npm archive was installed in an isolated project-local Linux DSH
+`0.2.1-rc.2` Web profile on Node `24.18.0`. With fixture credentials and a local
+HTTP/SSE gateway, 25 assertions covered the installed version, 11 current
+defaults, legacy opt-in, authenticated API discovery, parameter import from an
+empty selection, direct/proxy invocation, native model capabilities, partial
+results, errors and retry. Plan sync and credential switching retained the
+manually imported declaration. Restart retained selection, budgets and upstream
+pins; its first native probe used the switched credential successfully.
+
+The first archive exposed a cold-start race: without the HMR service, HTTP
+requests could run before startup synchronization replaced the old proxy port.
+The repaired lifecycle waits for initialization in that compatibility path. A
+new regression and the repacked native restart scenario both passed without a
+manual registration request or readiness delay.
+
+The user's daily profile was not changed. No live inference, entitlement,
+billing, upstream enforcement or Desktop acceptance was performed. Release
+SHA, final archive identity and downloaded asset verification belong in the
+release's `RELEASE-VALIDATION.md` asset. Local tests are not CI evidence.
+
 ## 0.7.3 details window and settings layout (2026-10-25)
 
 `npm test` passed 200 tests, including lint and the client consistency check.

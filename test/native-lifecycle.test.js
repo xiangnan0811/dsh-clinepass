@@ -124,6 +124,29 @@ test('a released instance cannot commit a queued write or overwrite a foreign pr
   assert.deepEqual(writes, ['dsh-clinebot'])
 })
 
+test('cold hosts without HMR wait for initialization before admitting authenticated requests', { timeout: 3000 }, async t => {
+  let route, release, arrived, ready = false, invoked = 0
+  const blocked = new Promise(resolve => { release = resolve })
+  const requested = new Promise(resolve => { arrived = resolve })
+  const ctx = {
+    root: {},
+    get: name => name === 'connection' ? { requestRejection() { arrived(); return undefined } } : undefined,
+    webServer: { register(value) { route = value; return () => {} } },
+  }
+  const lifecycle = createNativeLifecycle(ctx)
+  const initialized = lifecycle.initialize(async () => { await blocked; ready = true })
+  registerAuthenticatedRoute(ctx, { handler(_req, res) { invoked++; res.end(JSON.stringify({ ready })) } })
+  const server = http.createServer((req, res) => route.handler(req, res))
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  t.after(() => { release(); lifecycle.release(); server.closeAllConnections(); return new Promise(resolve => server.close(resolve)) })
+  const response = fetch(`http://127.0.0.1:${server.address().port}`)
+  await requested
+  assert.equal(invoked, 0)
+  release(); await initialized
+  assert.deepEqual(await (await response).json(), { ready: true })
+  assert.equal(invoked, 1)
+})
+
 test('disconnect during native initialization does not run the abandoned request handler', { timeout: 3000 }, async t => {
   const { ctx, hmr, values } = host(t)
   let route, initialized, entered, release, closed, invoked = 0
