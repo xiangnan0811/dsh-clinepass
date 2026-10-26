@@ -119,6 +119,36 @@ test('pin metadata uses the actual final provider, never content or provider att
   assert.deepEqual(pinned.providerOptions.other, { keep: true })
 })
 
+test('the dated DeepSeek pin filters private candidates without changing other model routes', () => {
+  const model = 'cline-pass/deepseek-v4.1-flash-1017'
+  const body = { model, messages: [{ role: 'user', content: 'hello' }] }
+  const pinned = applyUpstreamPin(body, 'deepseek')
+  assert.equal(pinned.model, model)
+  assert.deepEqual(pinned.provider, { only: ['deepseek'], order: ['deepseek'], allow_fallbacks: false })
+  assert.deepEqual(pinned.providerOptions.gateway, { only: ['deepseek'], order: ['deepseek'], has: ['vision', 'implicit-caching'] })
+  assert.equal(body.providerOptions, undefined)
+  assert.equal(applyUpstreamPin(body, ''), body)
+  assert.equal(applyUpstreamPin(body, 'fireworks').providerOptions.gateway.has, undefined)
+  for (const other of ['cline-pass/deepseek-v4.1-flash', 'cline-pass/deepseek-v4-pro', 'deepseek/deepseek-v4.1-flash-1017']) {
+    const result = applyUpstreamPin({ ...body, model: other }, 'deepseek')
+    assert.equal(result.model, other)
+    assert.equal(result.providerOptions.gateway.has, undefined)
+  }
+})
+
+test('dated DeepSeek capability filtering preserves caller constraints and is idempotent', () => {
+  for (const has of [undefined, null, [], ['vision', 'tool-use']]) {
+    const body = { model: 'cline-pass/deepseek-v4.1-flash-1017', providerOptions: { gateway: { has, sort: 'latency' }, other: { keep: true } } }
+    const before = structuredClone(body)
+    const pinned = applyUpstreamPin(body, 'deepseek')
+    assert.deepEqual(pinned.providerOptions.gateway.has, has?.length ? ['vision', 'tool-use', 'implicit-caching'] : ['vision', 'implicit-caching'])
+    assert.equal(pinned.providerOptions.gateway.sort, 'latency')
+    assert.deepEqual(pinned.providerOptions.other, { keep: true })
+    assert.deepEqual(applyUpstreamPin(pinned, 'deepseek'), pinned)
+    assert.deepEqual(body, before)
+  }
+})
+
 test('routing details retain split metadata but cannot promote a private upstream to a match', () => {
   const first = reportedRoutingEvidence({ id: 'chatcmpl-1017', model: 'vmc/deepseek-v4p1-flash-1017', choices: [] })
   const payload = { choices: [{ delta: { content: 'PRIVATE_PROMPT', provider_metadata: {
@@ -135,18 +165,19 @@ test('routing details retain split metadata but cannot promote a private upstrea
 test('smoke requests apply model pins and require matching structured provider metadata', async () => {
   for (const provider of ['deepseek', 'openai_compatible_private', undefined]) {
     let sent
-    const result = await smokeChat('https://example.test/v1', 'fake-key', { model: 'cline-pass/deepseek-v4.1-flash', upstreamPin: 'deepseek',
+    const result = await smokeChat('https://example.test/v1', 'fake-key', { model: 'cline-pass/deepseek-v4.1-flash-1017', upstreamPin: 'deepseek',
       fetchImpl: async (_url, options) => {
         sent = JSON.parse(options.body)
         return new Response(JSON.stringify({ data: { id: 'smoke-response', model: 'vmc/flash', provider, choices: [{ message: { content: 'pong' } }], usage: { prompt_tokens: 8, completion_tokens: 2 } } }))
       },
     })
     assert.deepEqual(sent.providerOptions.gateway.only, ['deepseek'])
+    assert.deepEqual(sent.providerOptions.gateway.has, ['vision', 'implicit-caching'])
     assert.deepEqual(sent.provider.only, ['deepseek'])
     assert.equal(result.ok, provider === 'deepseek')
     if (provider !== 'deepseek') assert.equal(result.errorCode, provider ? 'UPSTREAM_PIN_MISMATCH' : 'UPSTREAM_PIN_UNVERIFIED')
     assert.equal(result.usage.prompt_tokens, 8)
     assert.equal(result.routingEvidence.responseModel, 'vmc/flash')
-    if (result.ok) assert.equal(result.model, 'cline-pass/deepseek-v4.1-flash')
+    if (result.ok) assert.equal(result.model, 'cline-pass/deepseek-v4.1-flash-1017')
   }
 })

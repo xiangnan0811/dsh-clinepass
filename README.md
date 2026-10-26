@@ -14,7 +14,7 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-Version `0.7.4` requires DeepSeek Harness `^0.2.1-rc.2`.
+Version `0.7.5` requires DeepSeek Harness `^0.2.1-rc.2`.
 
 DeepSeek Harness installs plugins with pnpm. A GitHub spec is enough:
 
@@ -127,7 +127,7 @@ prefilled request budget is at most 65536 and is capped by any published lower
 context/output ceiling. Reasoning levels are never inferred from a generic
 reasoning flag. Discovery makes no inference calls and does not verify plan access.
 
-Version `0.7.4` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+Version `0.7.5` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
 require DSH authentication, including reads and update checks. Open the URL
@@ -224,6 +224,16 @@ The request carries both `provider.only` (OpenRouter) and
 `providerOptions.gateway.only` (gateway planner); `zai`/`z-ai` use each router's
 spelling. Unknown models/providers are not automatically tested or discovered.
 
+For `cline-pass/deepseek-v4.1-flash-1017` pinned to `deepseek`, the plugin also
+adds `vision` and `implicit-caching` to `providerOptions.gateway.has`, retaining
+additional caller capability filters without duplicates. Missing, null or empty
+filters receive both tags. This keeps the ClinePass model ID and credential;
+no model selection or saved configuration is rewritten. On 2026-10-26, `only`
+alone reached an anonymous private candidate, while this combination reached
+DeepSeek. The stable ID still reached the private route with both tags, so the
+workaround applies only to the dated ID and this pin. Other pins and automatic
+routing are unchanged. Extra capability conditions can leave no matching candidate.
+
 Use **Run streaming probe** to compare the requested and reported provider; it
 makes a real request. Only structured `finalProvider` or direct `provider` metadata
 counts as confirmation. A different provider fails with `UPSTREAM_PIN_MISMATCH`;
@@ -231,8 +241,10 @@ missing metadata fails with `UPSTREAM_PIN_UNVERIFIED`. Some accounts ignore rout
 restrictions (including private routes); HTTP 200 alone does not prove a pin.
 Metadata can arrive after output has begun: a late failure ends the call without
 replay and cannot undo output or charges already incurred. Pinning cannot ensure
-cache hits or override the service's routing policy. Real ClinePass account
-acceptance remains unverified; local fixtures exercise the installed DSH adapter.
+cache hits or override the service's routing policy. Small text requests on one
+live ClinePass account verified the dated-model combination on 2026-10-26;
+this does not verify images, long context, quota accounting or future routing.
+Local fixtures exercise the installed DSH adapter and failure paths.
 The wire protocol follows the public findings in
 [cline-pass-switcher](https://github.com/munmunjaklin458-afk/cline-pass-switcher/tree/02538a3137a08948a94f26f17dd4aeff8c029ed1)
 and [dsh-cline-pass](https://github.com/yhshzh/dsh-cline-pass/tree/008fa828c8c2c862d909e940372b72285e3c8ba4).

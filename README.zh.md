@@ -13,7 +13,7 @@ DeepSeek Harness 的 ClinePass 插件，维护在这个仓库：
 
 ## 从本仓库安装
 
-`0.7.4` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
+`0.7.5` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
 
 DeepSeek Harness 通过 pnpm 安装插件。GitHub 地址就够用：
 
@@ -55,7 +55,7 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 
 发现列表不修改已验证套餐，不发送推理请求。套餐过滤仍然生效，所选型号被过滤时会提示；用户保存的自定义声明和参数在账户切换后保留。参数预填是接口参考值，不代表已实测该账户的渠道能力。
 
-`0.7.4` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
+`0.7.5` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
 
 宿主提供 `connection.requestRejection` 时，全部 `/dsh-clinebot/*` 接口都要求 DSH 登录认证，包括读取和更新检查。请通过 `dsh web` 打印的地址登录。未认证返回 401，宿主或来源校验失败返回 403；设置写入仍保留来源校验。
 
@@ -104,7 +104,9 @@ upstreamPins:
 
 插件启用期间，原生直连／代理聊天、标题／压缩等辅助调用、流式测速和冒烟测试均遵守限制。直连在准备调用时固定配置，代理使用请求进入代理时的配置；切换账号重试仍保留同一供应商限制，不请求回退到其他供应商。请求同时携带 `provider.only` 与 `providerOptions.gateway.only`，分别覆盖 OpenRouter 和网关规划器；`zai`／`z-ai` 按各自协议拼写。不会自动枚举供应商或发出探测请求。
 
-保存后可运行“流式模型测速”，对照指定与实际上游，会产生真实请求。只有结构化 `finalProvider` 或直连响应的 `provider` 才作为确认依据；供应商不符返回 `UPSTREAM_PIN_MISMATCH`，整次响应都没有供应商信息返回 `UPSTREAM_PIN_UNVERIFIED`。部分账号（包括私有路由）可能忽略限制，不能以 HTTP 200 宣称钉住成功。供应商信息可能在输出开始后才返回：此时会报错结束，不重放，无法撤回已有输出和费用。固定供应商不能保证缓存命中，也不能强迫服务端改变路由政策。当前已用本地网关通过真实 DSH 适配器验证；真实 ClinePass 账号仍待验收。协议参考 [cline-pass-switcher](https://github.com/munmunjaklin458-afk/cline-pass-switcher/tree/02538a3137a08948a94f26f17dd4aeff8c029ed1) 与 [dsh-cline-pass](https://github.com/yhshzh/dsh-cline-pass/tree/008fa828c8c2c862d909e940372b72285e3c8ba4) 的公开实现，未复制其实现代码。
+对 `cline-pass/deepseek-v4.1-flash-1017` 的 `deepseek` 钉选，插件还会在 `providerOptions.gateway.has` 中补齐 `vision` 和 `implicit-caching`，保留调用方已有的额外能力条件并去重；缺失、`null` 或空列表均补入这两项。仍使用原 ClinePass 模型 ID 和凭据，不改写模型选择或已保存配置。2026-10-26 单账号实测中，仅 `only` 会走匿名私有候选，组合参数则命中 DeepSeek；无后缀模型加上这两项仍走私有渠道，因此此修复只作用于上述日期模型与钉选组合。其他钉选和自动路由保持原行为。额外能力条件可能导致没有匹配候选。
+
+保存后可运行“流式模型测速”，对照指定与实际上游，会产生真实请求。只有结构化 `finalProvider` 或直连响应的 `provider` 才作为确认依据；供应商不符返回 `UPSTREAM_PIN_MISMATCH`，整次响应都没有供应商信息返回 `UPSTREAM_PIN_UNVERIFIED`。部分账号（包括私有路由）可能忽略限制，不能以 HTTP 200 宣称钉住成功。供应商信息可能在输出开始后才返回：此时会报错结束，不重放，无法撤回已有输出和费用。固定供应商不能保证缓存命中，也不能强迫服务端改变路由政策。本地网关验证覆盖真实 DSH 适配器及失败路径；2026-10-26 已用一个真实 ClinePass 账号的小文本请求验证日期模型的组合参数，尚未验证图片、长上下文、额度扣减或未来路由。协议参考 [cline-pass-switcher](https://github.com/munmunjaklin458-afk/cline-pass-switcher/tree/02538a3137a08948a94f26f17dd4aeff8c029ed1) 与 [dsh-cline-pass](https://github.com/yhshzh/dsh-cline-pass/tree/008fa828c8c2c862d909e940372b72285e3c8ba4) 的公开实现，未复制其实现代码。
 
 普通聊天也会显示上游：输入区提示“上次响应”的供应商，展开可查看当前会话的请求；统计页“最近请求 · 上游记录”显示配置档最近 100 次请求（含失败、自动路由及账户重试明细）。逐次保留指定上游、是否附加限制、响应报告上游和核对结果，重启后继续保留；不记录密钥或聊天正文。显示区分本次命中、未命中、无法确认、未附加限制、自动路由和历史未记录。“已附加”不代表网关已接收；本次供应商相符不证明后续请求会遵守限制。模型旁的标签只表示指定的供应商。当前会话明细随会话结算、打开详情或手动刷新更新，只从最近 100 次记录中筛选本会话，不借用其他会话或当前配置补齐缺失证据。CSV 仍导出汇总统计，上游明细通过统计 API 的 `recent` 字段提供。
 

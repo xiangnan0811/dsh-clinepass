@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.5 — 2026-10-26
+
+Repair the `deepseek` pin for `cline-pass/deepseek-v4.1-flash-1017` after the
+ClinePass virtual route began ignoring `only` on its private candidate. Add
+`vision` and `implicit-caching` capability filters to this exact combination,
+preserving additional caller conditions. Apply the same request policy to native
+chat, proxy account retries and probes. Keep strict final-provider verification,
+ClinePass IDs and credentials, saved selections, and all other routing unchanged.
+The stable model alias is not automatically replaced by the dated model.
+
 ## 0.7.4 — 2026-10-26
 
 Refresh default model selection against the 2026-10-26 ClinePass API: add Kimi

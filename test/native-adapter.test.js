@@ -108,7 +108,7 @@ test('native 1017 pins reach the wire, survive preparation and report actual ups
   state.upstreamPins = [{ model, provider: 'baseten' }]
   await dispatch(prepared, 'pinned-session')
   assert.deepEqual(upstream.calls[0].body.provider, { only: ['deepseek'], order: ['deepseek'], allow_fallbacks: false })
-  assert.deepEqual(upstream.calls[0].body.providerOptions.gateway, { only: ['deepseek'], order: ['deepseek'] })
+  assert.deepEqual(upstream.calls[0].body.providerOptions.gateway, { only: ['deepseek'], order: ['deepseek'], has: ['vision', 'implicit-caching'] })
   assert.equal(upstream.calls[0].body.reasoning_effort, 'high')
   assert.equal(upstream.calls[0].body.max_tokens, 1234)
   assert.equal(upstream.calls[0].body.model, model)
@@ -120,10 +120,12 @@ test('native 1017 pins reach the wire, survive preparation and report actual ups
   assert.equal(result.upstream, 'deepseek')
   assert.equal(result.upstreamPinAttached, true)
   assert.equal(result.upstreamPinStatus, 'matched')
+  assert.deepEqual(upstream.calls[1].body.providerOptions.gateway.has, ['vision', 'implicit-caching'])
   await probe.close()
 })
 
 test('native strict pins fail on ignored, absent and late mismatched routing without replay', async (t) => {
+  const model = 'cline-pass/deepseek-v4.1-flash-1017'
   for (const scenario of [
     { provider: 'openai_compatible_private', code: 'UPSTREAM_PIN_MISMATCH' },
     { provider: 'baseten', lateProvider: true, code: 'UPSTREAM_PIN_MISMATCH' },

@@ -72,11 +72,12 @@ test('non-streaming failover preserves body and Retry-After, and records one log
 })
 
 test('proxy keeps the strict upstream restriction across account retry and overrides caller routing', async (t) => {
+  const model = 'cline-pass/deepseek-v4.1-flash-1017'
   const f = await fixture(t, (call, res) => {
     if (call.account === 'first') { res.writeHead(429); res.end(); return }
     res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ ...complete, provider: 'DeepSeek' }))
-  }, { config: { upstreamPins: [{ model: 'cline-pass/test', provider: 'deepseek' }] } })
-  const response = await f.send({ provider: { only: ['baseten'] }, providerOptions: { gateway: { only: ['baseten'], unrelated: true } } })
+  }, { config: { upstreamPins: [{ model, provider: 'deepseek' }] } })
+  const response = await f.send({ model, provider: { only: ['baseten'] }, providerOptions: { gateway: { only: ['baseten'], has: ['tool-use'], unrelated: true } } })
   assert.equal(response.status, 200)
   await response.text()
   assert.equal(f.calls.length, 2)
@@ -85,24 +86,28 @@ test('proxy keeps the strict upstream restriction across account retry and overr
     assert.deepEqual(body.provider.only, ['deepseek'])
     assert.equal(body.provider.allow_fallbacks, false)
     assert.deepEqual(body.providerOptions.gateway.only, ['deepseek'])
+    assert.deepEqual(body.providerOptions.gateway.has, ['tool-use', 'vision', 'implicit-caching'])
+    assert.equal(body.model, model)
     assert.equal(body.providerOptions.gateway.unrelated, true)
   }
   assert.equal((await f.record()).upstream, 'DeepSeek')
 })
 
 test('proxy refuses ignored or unverified pins for JSON and streams without account fallback', async (t) => {
+  const model = 'cline-pass/deepseek-v4.1-flash-1017'
   for (const stream of [false, true]) for (const provider of ['openai_compatible_private', null, 'deepseek']) await t.test(`${stream}/${provider}`, async (t) => {
     const routing = provider ? { provider_metadata: { gateway: { routing: { finalProvider: provider } } } } : {}
     const f = await fixture(t, (_call, res) => {
       if (stream) { res.setHeader('Content-Type', 'text/event-stream'); res.end(frame({ content: 'pong' }) + frame(routing) + terminal) }
       else { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ ...complete, ...routing })) }
-    }, { config: { upstreamPins: [{ model: 'cline-pass/test', provider: 'deepseek' }] } })
-    const response = await f.send({ stream })
+    }, { config: { upstreamPins: [{ model, provider: 'deepseek' }] } })
+    const response = await f.send({ model, stream })
     const text = await response.text()
     const record = await f.record()
     assert.equal(record.ok, provider === 'deepseek')
     if (provider !== 'deepseek') assert.match(text, new RegExp(provider ? 'UPSTREAM_PIN_MISMATCH' : 'UPSTREAM_PIN_UNVERIFIED'))
     assert.equal(f.calls.length, 1)
+    assert.deepEqual(JSON.parse(f.calls[0].body).providerOptions.gateway.has, ['vision', 'implicit-caching'])
     assert.equal(f.proxy.status().activeRequests, 0)
   })
 })

@@ -1,5 +1,49 @@
 # Validation record
 
+## 0.7.5 dated DeepSeek pin capability filter (2026-10-26)
+
+The affected account's retained history last reported a matching 1017 request
+starting at 07:31:11 UTC and first reported a private-provider mismatch at
+08:16:23 UTC. Both records had the `deepseek` restriction attached. A direct
+ClinePass API comparison at 13:33–13:35 UTC reproduced the private landing for
+both the stable and dated IDs with the existing `only/order` fields. Even a
+nonexistent provider was ignored on that private path.
+
+Adding `gateway.has: [vision, implicit-caching]` to the dated ID plus the
+`deepseek` restriction produced one non-streaming and two streaming successes.
+The negative provider control with those tags failed with no matching provider.
+The stable ID still landed on the private route with the tags. Successful stream
+metadata reported zero provider attempts for the private candidate and one
+successful DeepSeek attempt for the public candidate. The inferred explanation
+is capability filtering of the private candidate before public provider selection;
+the service's internal routing implementation was not inspected. This agrees with
+the earlier [ClinePassBridge capability-filter experiment](https://github.com/xiao-qiu-qiu/ClinePassBridge/blob/main/docs/upstream-capability-filter.md).
+
+The repair only adds these tags for `cline-pass/deepseek-v4.1-flash-1017` pinned
+to `deepseek`, preserving additional caller capability conditions and the model
+ID. It neither migrates settings nor weakens final-provider verification.
+Focused regressions failed before the repair because the capability tags were
+absent, then all 56 focused cases passed. The complete `npm test` run passed
+211 tests with no failures or skips, including lint and client consistency.
+Coverage includes native preparation and streaming probes, JSON smoke requests,
+proxy JSON/SSE rejection, account retry, missing/late mismatched metadata,
+additional filters, repeated application, automatic routing and unrelated IDs.
+
+At 13:44:53–13:44:56 UTC, the repaired checkout made three small live requests:
+`smokeChat`, native direct streaming, and native streaming through the plugin's
+loopback proxy. All completed successfully and reported `deepseek` with the
+DeepSeek metadata fingerprint. The native cases used installed DSH services with
+an isolated in-memory context, one existing ClinePass credential and no automatic
+retries; they did not install the candidate into the user's profile. Credentials
+and chat contents were not persisted. The ClinePass model ID and API endpoint
+were retained throughout.
+
+This is one-account text inference evidence, not image, long-context, cache-hit,
+quota-accounting, Desktop or future-routing acceptance. The daily DSH profile was
+not modified or restarted. Archive installation and final release identity are
+recorded separately in the release's `RELEASE-VALIDATION.md` asset; no daily
+consumer installation is part of this verification.
+
 ## 0.7.4 model catalog and API discovery (2026-10-26)
 
 Read-only requests to the live public Cline API returned HTTP 200 for
