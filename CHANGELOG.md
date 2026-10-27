@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.0 — 2026-10-27
+
+Selectively adopt upstream through `fd72f12` (0.6.16), retaining this fork's native
+adapter, strict provider pins, explicit model choices and unknown-usage semantics.
+
+- Require a source header on settings writes and reject spoofed remote Fetch
+  Metadata/forwarded hosts without weakening host authentication.
+- Add minute-range/failure filters, P50/P95 histogram bounds, weekday/hour heatmap,
+  JSON export and configurable detail retention; preserve legacy daily totals.
+- Persist bounded account events; support additional-account rename/key clearing,
+  grouped model lists and inline model probes.
+- Add explicit public reference-price bindings with manual-rate precedence,
+  opt-in UTC budgets and quota pace estimates. Missing data stays unknown;
+  budget rejections send no upstream request or synthetic usage record.
+- Compress the generated client with whitespace-only esbuild transformation and
+  check locale key/placeholder parity. Keep native theme and modal behavior.
+
 ## 0.7.5 — 2026-10-26
 
 Repair the `deepseek` pin for `cline-pass/deepseek-v4.1-flash-1017` after the

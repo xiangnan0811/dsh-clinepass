@@ -1,5 +1,39 @@
 # Validation record
 
+## 0.8.0 upstream adoption (2026-10-27)
+
+Candidate above `3e20cd3`, selectively adopting upstream `fd72f12` (0.6.16).
+`npm test` passes 224 tests, including lint and client consistency; the client is
+248749 bytes, below 256 KiB. The native-adapter suite also passes 31 tests with
+DSH `0.2.1-rc.3`, in addition to the normal installed rc.2 test environment.
+
+Coverage includes spoofed write origins, legacy statistics migration, missing
+measurements, minute retention without writes, logical-request failure filters
+and their retry attempts, overflow percentiles, bounded/redacted account events,
+key clearing with an environment fallback, price-refresh failure, budget blocking
+before network activity, successful key saving when validation is budget-blocked,
+quota sample/reset invalidation and locale key/placeholder parity.
+
+An `npm pack` archive was installed into an isolated rc.3 Web profile. All 51
+installed runtime files, including the generated client, matched the working
+tree byte-for-byte. Reusing a same-version archive path had retained an earlier
+package; final acceptance used a distinct archive path and a cold restart.
+Local HTTP/SSE fixtures verified first post-boot direct and proxy calls, strict
+pin match/mismatch/missing metadata, preserved model selections and output limits,
+budget exceeded/unknown rejection without new upstream calls or usage records,
+account rename/key clearing, event/statistics persistence and JSON export.
+The same candidate completed a native rc.3 headless fixture call with the
+credentials service explicitly enabled; stock headless disables this dependency.
+
+Chromium operated the native plugin UI: public catalog synchronization against
+models.dev, explicit reference binding with manual rates still taking priority,
+budget save/disable, account rename/history, minute presets, failure filtering and
+heatmap selection. Chinese light 1280px and dark 390px screenshots were inspected;
+the page and modal body had no horizontal overflow, while the narrow heatmap
+scrolls within its own container. TUI has no verified official host consumer and
+is deferred. No live ClinePass account, billing, Desktop, CI or release validation
+is claimed. The user's daily profile and global host installation were unchanged.
+
 ## 0.7.5 dated DeepSeek pin capability filter (2026-10-26)
 
 The affected account's retained history last reported a matching 1017 request

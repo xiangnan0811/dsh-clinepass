@@ -5,6 +5,11 @@
       style.id = 'dsh-clinebot-full-css'
       style.dataset.dshPlugin = NS
       const css = `
+        .cb-heatmap-scroll { overflow-x: auto; margin-top: 12px; }
+        .cb-heatmap { display: grid; grid-template-columns: 40px repeat(24, minmax(13px, 1fr)); gap: 3px; min-width: 440px; align-items: center; }
+        .cb-heatmap-hour, .cb-heatmap-day { font-size: 10px; color: var(--dsw-alias-label-secondary); }
+        .cb-heatmap-cell { border: 1px solid var(--dsw-alias-border-l2); padding: 0; height: 18px; border-radius: 3px; cursor: pointer; background: color-mix(in srgb, var(--cb-accent) var(--cb-heat), var(--dsw-alias-bg-layer-2)); }
+        .cb-heatmap-cell[aria-pressed="true"], .cb-heatmap-cell:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 1px; }
 .cb-page,.cb-detail-shell{--cb-mono:ui-monospace,"SF Mono",Menlo,"JetBrains Mono","Cascadia Mono","Fira Code","DejaVu Sans Mono","Liberation Mono",Consolas,monospace;--cb-accent:var(--dsw-alias-state-business-primary);--cb-muted:var(--dsw-alias-label-tertiary,var(--dsw-alias-label-secondary));--cb-fill-soft:color-mix(in srgb,var(--dsw-alias-label-primary) 3%,transparent);--cb-fill:color-mix(in srgb,var(--dsw-alias-label-primary) 6%,transparent);--cb-fill-strong:color-mix(in srgb,var(--dsw-alias-label-primary) 10%,transparent)}
 .cb-page{display:flex;flex-direction:column;gap:16px;padding:0 0 24px;max-width:none;min-width:0;font-size:14px;line-height:1.55;color:var(--dsw-alias-label-primary)}
 .cb-page *{box-sizing:border-box}.cb-page p{margin:0}.cb-page a{color:var(--cb-accent);text-underline-offset:3px;overflow-wrap:anywhere}.cb-page code,.cb-mono{font-family:var(--cb-mono);font-size:12px}

@@ -11,6 +11,7 @@ import { registerNativeModelRoutes } from '../lib/routes/native-models.js'
 import { registerStatsRoutes } from '../lib/routes/stats.js'
 import { registerProbeRoutes } from '../lib/routes/probe.js'
 import { registerPluginUpdater } from '../lib/updater.js'
+import { registerEconomyRoutes } from '../lib/routes/economy.js'
 
 function response() {
   return {
@@ -33,9 +34,9 @@ test('every plugin route refuses unauthenticated requests before reading or chan
   }
   const forbidden = () => { assert.fail('unauthenticated handler reached plugin state') }
   const deps = { live: forbidden, getSettingsApi: forbidden, syncProviderState: forbidden, triggerAutoDiscover: forbidden }
-  for (const register of [registerSettingsRoutes, registerAccountsRoutes, registerModelsRoutes, registerAuthRoutes, registerKeyRoutes, registerProxyControls, registerNativeModelRoutes, registerStatsRoutes, registerProbeRoutes]) register(ctx, deps)
+  for (const register of [registerSettingsRoutes, registerAccountsRoutes, registerModelsRoutes, registerAuthRoutes, registerKeyRoutes, registerProxyControls, registerNativeModelRoutes, registerStatsRoutes, registerProbeRoutes, registerEconomyRoutes]) register(ctx, deps)
   registerPluginUpdater(ctx, { endpoint: '/dsh-clinebot/update', manifestUrl: new URL('../package.json', import.meta.url) })
-  assert.equal(routes.length, 27)
+  assert.equal(routes.length, 33)
   const req = { method: 'POST', headers: { host: 'localhost', origin: 'http://localhost' }, socket: { remoteAddress: '127.0.0.1' } }
   for (const code of [401, 403]) {
     rejection = code
@@ -46,7 +47,7 @@ test('every plugin route refuses unauthenticated requests before reading or chan
       assert.equal(res.body.ok, false)
     }
   }
-  assert.equal(admissions, 54)
+  assert.equal(admissions, 66)
 })
 
 test('admitted requests retain CSRF checks and legacy hosts retain their origin gate', async () => {
@@ -81,4 +82,23 @@ test('host authentication errors fail closed', async () => {
   const res = response()
   await route.handler({}, res)
   assert.equal(res.status, 403)
+})
+
+test('write source gate rejects spoofed remote metadata and source-less loopback writes', () => {
+  for (const req of [
+    { headers: { host: 'dsh.test', 'sec-fetch-site': 'same-origin' }, socket: { remoteAddress: '192.0.2.10' } },
+    { headers: { host: 'dsh.test', 'x-forwarded-host': 'other.test', origin: 'https://other.test' }, socket: { remoteAddress: '192.0.2.10' } },
+    { headers: { host: 'dsh.test' }, socket: { remoteAddress: '127.0.0.1' } },
+  ]) {
+    for (const method of ['POST', 'PUT', 'DELETE']) {
+      const res = response()
+      assert.equal(assertTrustedSettingsRequest({ ...req, method }, res), false)
+      assert.equal(res.status, 403)
+    }
+  }
+  for (const headers of [
+    { host: 'dsh.test', origin: 'https://dsh.test' },
+    { host: 'localhost', 'x-forwarded-host': 'dsh.test', origin: 'https://dsh.test' },
+    { host: 'dsh.test', referer: 'https://dsh.test/settings' },
+  ]) assert.equal(assertTrustedSettingsRequest({ method: 'PUT', headers, socket: { remoteAddress: '127.0.0.1' } }, response()), true)
 })

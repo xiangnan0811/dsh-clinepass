@@ -1,4 +1,5 @@
-function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }) {
+function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, onChanged, t }) {
+  const request = useClientRequests()
   const accounts = Array.isArray(status?.accounts) ? status.accounts : []
   const primary = status?.config?.apiKeyEnv || 'CLINEBOT_API_KEY'
   const [label, setLabel] = React.useState('')
@@ -9,6 +10,18 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
   const [notice, setNotice] = React.useState(null)
   const [confirmEnv, setConfirmEnv] = React.useState('')
   const [deleteSecret, setDeleteSecret] = React.useState(false)
+  const [editAccount, setEditAccount] = React.useState(null), [editingBusy, setEditingBusy] = React.useState(false)
+  async function saveAccountAction() {
+    if (!editAccount) return
+    setEditingBusy(true)
+    try {
+      const res = await request(`${ROUTE_PREFIX}/accounts/${editAccount.action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editAccount) })
+      const data = await res.json()
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      setEditAccount(null); setNotice({ ok: true, message: t('accounts.updated') }); await onChanged?.()
+    } catch (error) { setNotice({ ok: false, message: String(error.message || error) }) }
+    finally { setEditingBusy(false) }
+  }
   const failover = status?.lastFailover
 
   async function submitAccount() {
@@ -124,6 +137,8 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
                           onClick: () => handlePinAccount(acc.apiKeyEnv),
                         }, t('accounts.pin_btn'))
                       : null,
+                    !isPrimary ? React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm cb-btn-ghost', disabled: !!busy || editingBusy, onClick: () => setEditAccount({ action: 'rename', apiKeyEnv: acc.apiKeyEnv, label: acc.label }) }, t('accounts.rename')) : null,
+                    !isPrimary && acc.present ? React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm cb-btn-ghost', disabled: !!busy || editingBusy, onClick: () => setEditAccount({ action: 'key/clear', apiKeyEnv: acc.apiKeyEnv }) }, t('accounts.clear_key')) : null,
                     isPrimary
                       ? null
                       : React.createElement('button', {
@@ -142,6 +157,12 @@ function AccountsSection({ status, busy, handlePinAccount, handleAddAccount, han
           ),
         ))
       : null,
+    editAccount ? React.createElement('div', { className: 'cb-editor', role: editAccount.action === 'key/clear' ? 'alertdialog' : undefined, 'aria-label': t(editAccount.action === 'rename' ? 'accounts.rename' : 'accounts.clear_key') },
+      React.createElement('div', { className: 'cb-editor-note' }, React.createElement('code', null, editAccount.apiKeyEnv)),
+      editAccount.action === 'rename' ? React.createElement('input', { className: 'cb-input', value: editAccount.label, maxLength: 160, 'aria-label': t('accounts.col_name'), onChange: event => setEditAccount({ ...editAccount, label: event.target.value }) }) : React.createElement('p', { className: 'cb-editor-note' }, t('accounts.clear_hint')),
+      React.createElement('div', { className: 'cb-editor-actions' },
+        React.createElement('button', { type: 'button', className: editAccount.action === 'rename' ? 'cb-btn cb-btn-primary' : 'cb-btn cb-btn-danger', disabled: !!busy || editingBusy, onClick: saveAccountAction }, t('accounts.confirm_action')),
+        React.createElement('button', { type: 'button', className: 'cb-btn', disabled: editingBusy, onClick: () => setEditAccount(null) }, t('accounts.cancel')))) : null,
     confirmEnv
       ? React.createElement(
           'div',

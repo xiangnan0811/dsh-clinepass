@@ -14,7 +14,7 @@ The package name is `dsh-clinepass`. `private: true` blocks `npm publish`.
 
 ## Install from this repository
 
-Version `0.7.5` requires DeepSeek Harness `^0.2.1-rc.2`.
+Version `0.8.0` requires DeepSeek Harness `^0.2.1-rc.2`.
 
 DeepSeek Harness installs plugins with pnpm. A GitHub spec is enough:
 
@@ -127,12 +127,23 @@ prefilled request budget is at most 65536 and is capped by any published lower
 context/output ceiling. Reasoning levels are never inferred from a generic
 reasoning flag. Discovery makes no inference calls and does not verify plan access.
 
-Version `0.7.5` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
+Version `0.8.0` targets DeepSeek Harness `0.2.1-rc.2` (`next` on 2026-10-19). Earlier `0.1.7-rc.2` validation applies to previous versions. The settings sidebar entry is `settings.section` `dsh-clinebot`. The same page is `plugins.row.config` at `dsh-clinepass#dsh-clinebot`.
 
 On hosts providing `connection.requestRejection`, all `/dsh-clinebot/*` routes
 require DSH authentication, including reads and update checks. Open the URL
 printed by `dsh web` to sign in. Unauthenticated requests return 401; host or
 origin rejection returns 403. Settings writes also retain their origin checks.
+Writes require Origin or Referer. Fetch Metadata alone is not authorization;
+forwarded hosts are trusted only from a loopback proxy, and DSH authentication
+is still required.
+
+Version `0.8.0` has also passed isolated DSH `0.2.1-rc.3` Web and direct
+headless fixture checks. Headless disables the managed credentials service by
+default; this plugin requires that service. In the headless profile patch, enable
+`{id: credentials, disabled: false}` and set `agent-default-model` to provider
+`clinebot` and an enabled model. Launch-environment keys still work. The optional
+upstream TUI settings integration is deferred because the official host has no
+verified `tuiSettingsSections` consumer.
 
 ## Configuration
 
@@ -165,6 +176,11 @@ dsh-clinebot:
 | `smokeTimeoutMs` | `25000` | Smoke test |
 | `webSearchEnabled` | `false` | Register native search provider `clinebot` without changing global selection |
 | `searchTimeoutMs` | `15000` | Search deadline, including the response body |
+| `statsRetentionDays` | `95` | Minute aggregates retained for 0–3650 days; 0 is unlimited; daily totals remain |
+| `quotaForecastEnabled` | `false` | Estimate quota pace from comparable samples at least a minute apart |
+| `priceAutoSync` | `false` | Refresh public reference prices on model synchronization, at most once per six hours |
+| `priceBindings` | `[]` | Explicit `{model, provider, sourceModel}` reference-price choices; manual `costRates` take priority |
+| `dailyBudget`, `monthlyBudget` | `0` | Optional UTC day/month estimated-cost limits in `costCurrency`; 0 disables each limit |
 
 Checked models are what Settings → Models lists. Per-model overrides for
 context, output cap, request budget, input, and reasoning are edited on the
@@ -286,6 +302,32 @@ These are new measurements, not reconstructed history or billing estimates.
 Storage errors remain visible while model calls continue; unsaved measurements
 remain in memory. Reset clears the entire profile's statistics, including filtered
 dates, and archives a corrupt file before replacing it. Accounts and models remain.
+
+Usage patterns add P50/P95 histogram bounds, a weekday/hour heatmap using the
+browser's current UTC offset, minute ranges (end exclusive), failure filters and
+JSON export. Old daily aggregates remain intact; they acquire neither invented
+minute detail nor percentile samples. Minute/failure filters include retained
+detail only. Account history keeps the last 200 routing, cooldown, recovery and
+selection events independently of statistics reset. Additional accounts can be
+renamed or have their saved key cleared while retaining their entry and pins;
+environment keys must be removed at their source.
+
+Under **Usage & rates**, public USD prices from `models.dev` can be synchronized
+manually and bound to an explicit provider/model. The profile-local cache is
+`clinepass/prices.json`; failed refreshes retain the last successful catalog and
+show an error. The timestamp stays visible. No binding is selected automatically,
+missing cache prices remain unknown, and other currencies use manual rates.
+Manual rows override public references, including incomplete manual rows.
+
+Daily/monthly budgets check recorded profile usage at current rates before a new
+native, proxy, smoke or probe call. Missing measurements, rates or usable storage
+block calls only when a limit is enabled. In-flight calls can exceed a limit;
+these estimates are not bills or subscription quotas. Resetting statistics also
+resets budget usage. Changing currency reinterprets manual rates and limits
+without conversion. `/cline cost` and `/cline budget` show the same estimates.
+Optional quota pace estimates require actual comparable samples from the same
+account/window and clear on errors, resets or account changes; they do not route
+requests.
 
 The [official Cline code](https://github.com/cline/cline/blob/40c5d99031fe1128189c5b52e40638d2b7787754/sdk/packages/llms/src/providers/builtins.ts)
 declares provider-executed search for ClinePass models. This does not establish

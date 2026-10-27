@@ -44,6 +44,11 @@ function ModelsSection({
   const [editing, setEditing] = React.useState('')
   const [form, setForm] = React.useState(null)
   const [notice, setNotice] = React.useState(null)
+  const plan = new Set(config.planVerified ? config.discoveredPlanIds || [] : [])
+  const custom = new Set((config.customModels || []).filter(row => row.userDeclared).map(row => row.id))
+  const groupFor = model => custom.has(model.id) ? 'custom' : plan.has(model.id) ? 'plan' : 'other'
+  const groups = ['plan', 'other', 'custom']
+  const orderedModels = groups.flatMap(group => modelsList.filter(model => groupFor(model) === group))
 
   function openEditor(model) {
     const override = model.override || {}
@@ -129,9 +134,10 @@ function ModelsSection({
     React.createElement(
       'div',
       { className: 'cb-model-list' },
-      modelsList.map((model) => React.createElement(
+      orderedModels.map((model, index) => React.createElement(
         'div',
         { key: model.id },
+        index === 0 || groupFor(orderedModels[index - 1]) !== groupFor(model) ? React.createElement('div', { className: 'cb-subtitle cb-block' }, `${t(`models.group_${groupFor(model)}`)} · ${modelsList.filter(row => groupFor(row) === groupFor(model)).length}`) : null,
         React.createElement('div', { className: 'cb-model' },
           React.createElement('input', {
             type: 'checkbox',
@@ -170,6 +176,7 @@ function ModelsSection({
         ),
         editing === model.id && form ? React.createElement('div', { className: 'cb-editor' },
             React.createElement('div', { className: 'cb-editor-note' }, React.createElement(UpstreamPinEditor, { model: model.id, config, busy, saveModelPatch, t })),
+            enabledSet.has(model.id) ? React.createElement('div', { className: 'cb-editor-note' }, React.createElement(ModelProbe, { status: { availableModels: [model], config: { enabledModels: [model.id] } }, t })) : null,
             model.channelListed && !model.vendorReasoningNote ? null : React.createElement('div', { className: 'cb-section-desc cb-editor-note' }, model.channelListed ? model.vendorReasoningNote : t('models.unlisted_note')),
             React.createElement('div', { className: 'cb-section-desc cb-editor-note' }, t('models.count_hint')),
             React.createElement('label', { className: 'cb-field' }, React.createElement('span', { className: 'cb-field-label' }, t('models.context_ph')), React.createElement('input', { className: 'cb-input', value: form.contextWindow, onChange: (event) => setForm({ ...form, contextWindow: event.target.value }) })),

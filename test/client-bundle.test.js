@@ -17,11 +17,11 @@ test('built client injects configForms and registers the row settings page', () 
   assert.equal(source.includes("name: 'settings.plugin.item'"), false)
   assert.equal(source.includes("name: 'plugins.item'"), false)
   assert.equal(source.includes('configForms'), true)
-  assert.equal(source.includes("name: 'plugins.row.config'"), true)
-  assert.equal(source.includes("name: 'settings.section'"), true)
-  assert.match(source, /const ROW_KEY = `\$\{PACKAGE_NAME\}#\$\{NS\}`/)
-  assert.match(source, /const PACKAGE_NAME = 'dsh-clinepass'/)
-  assert.match(source, /const NS = 'dsh-clinebot'/)
+  assert.match(source, /name\s*:\s*['"]plugins\.row\.config['"]/)
+  assert.match(source, /name\s*:\s*['"]settings\.section['"]/)
+  assert.match(source, /const ROW_KEY\s*=\s*`\$\{PACKAGE_NAME\}#\$\{NS\}`/)
+  assert.match(source, /const PACKAGE_NAME\s*=\s*['"]dsh-clinepass['"]/)
+  assert.match(source, /const NS\s*=\s*['"]dsh-clinebot['"]/)
   let loaded
   const sandbox = {
     window: {

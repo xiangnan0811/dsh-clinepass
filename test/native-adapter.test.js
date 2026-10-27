@@ -3,8 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, realpathSync } from 'node:fs'
 import vm from 'node:vm'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { dirname } from 'node:path'
 import http from 'node:http'
 import test from 'node:test'
 import { createClineAdapter } from '../lib/native-adapter.js'
@@ -22,7 +21,8 @@ const pi = require('@deepseek-ai/dsh-llm-pi-ai')
 const llm = require('@deepseek-ai/dsh-llm')
 const { Context } = require('@deepseek-ai/cordis')
 const dshLib = dirname(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
-const protocol = await import(pathToFileURL(join(dshLib, '../node_modules/@earendil-works/pi-ai/dist/api/openai-completions.lazy.js')).href)
+const protocolUrl = execFileSync(process.execPath, ['--input-type=module', '-e', "console.log(import.meta.resolve('@earendil-works/pi-ai/api/openai-completions.lazy'))"], { cwd: dshLib, encoding: 'utf8' }).trim()
+const protocol = await import(protocolUrl)
 const deps = { ...pi, ...llm, ...protocol }
 const model = 'cline-pass/deepseek-v4.1-flash'
 
@@ -66,6 +66,24 @@ async function dispatch(prepared, sessionId) {
   assert.equal(Object.isFrozen(options), true)
   return options
 }
+
+test('native budget guard blocks before sending and does not create unknown usage records', async t => {
+  const upstream = await mock(t)
+  const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY_TEST', models: getAllModels({}) }).payload, overrides: [] }
+  const metadata = new WeakMap(), records = []
+  let blocked = true
+  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fake-key',
+    noteDispatch: (options, route) => metadata.set(options, route),
+    beforeRequest: async () => { if (blocked) throw Object.assign(new Error('Budget reached'), { code: 'BUDGET_EXCEEDED' }) } })
+  const service = await runtime(t, adapter, (options, next) => measureStream(next(), options, () => metadata.get(options), record => records.push(record)))
+  const prepared = await service.prepareCall({ provider: 'clinebot', model })
+  const chunks = await Array.fromAsync(prepared.stream({ ...prepared.config, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
+  assert.equal(chunks.at(-1).reason.failure.code, 'BUDGET_EXCEEDED')
+  assert.equal(upstream.calls.length, 0); assert.equal(records.length, 0)
+  blocked = false
+  await dispatch(await service.prepareCall({ provider: 'clinebot', model }))
+  assert.equal(upstream.calls.length, 1); assert.equal(records.length, 1)
+})
 
 test('native preparation freezes per-model defaults, preserves explicit controls and serializes Off', async (t) => {
   const upstream = await mock(t)

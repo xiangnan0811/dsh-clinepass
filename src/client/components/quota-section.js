@@ -154,6 +154,7 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
                 )),
               )
             : null,
+          React.createElement(QuotaForecast, { usage, identity: JSON.stringify([status.config?.baseUrl, activeEnv, usage?.user?.email, usage?.plan]), enabled: status.config?.quotaForecastEnabled, t }),
         )
       : null
   )

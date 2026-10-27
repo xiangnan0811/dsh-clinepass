@@ -4,6 +4,8 @@ function DisplaySettings({ status, draft, busy, saveSettings, t }) {
   const [model, setModel] = React.useState('')
   const [values, setValues] = React.useState({})
   const [notice, setNotice] = React.useState(null)
+  const [retention, setRetention] = React.useState(String(draft.statsRetentionDays ?? 95)), [retentionNotice, setRetentionNotice] = React.useState(null)
+  React.useEffect(() => setRetention(String(draft.statsRetentionDays ?? 95)), [draft.statsRetentionDays])
   const edit = (id) => {
     setModel(id); setNotice(null)
     const rate = draft.costRates?.find((entry) => entry.model === id)
@@ -19,6 +21,14 @@ function DisplaySettings({ status, draft, busy, saveSettings, t }) {
   return React.createElement('div', { className: 'cb-section-card' },
     React.createElement('div', { className: 'cb-section-title' }, t('surface.preferences')),
     ['showSidebarQuota', 'showComposerUsage'].map((key) => React.createElement('label', { className: 'cb-check', key }, React.createElement('input', { type: 'checkbox', checked: draft[key] !== false, disabled: !!busy, onChange: (event) => saveSettings({ [key]: event.target.checked }) }), t(`surface.${key}`))),
+    React.createElement('label', { className: 'cb-check' }, React.createElement('input', { type: 'checkbox', checked: draft.quotaForecastEnabled === true, disabled: !!busy, onChange: event => saveSettings({ quotaForecastEnabled: event.target.checked }) }), t('forecast.enable')),
+    React.createElement('label', { className: 'cb-field' }, t('analytics.retention'), React.createElement('input', { type: 'number', min: 0, max: 3650, step: 1, className: 'cb-input', value: retention, disabled: !!busy, onChange: event => setRetention(event.target.value) })),
+    React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: async () => {
+      const value = Number(retention)
+      if (!retention.trim() || !Number.isInteger(value) || value < 0 || value > 3650) { setRetentionNotice({ ok: false, message: t('analytics.invalid_retention') }); return }
+      setRetentionNotice(await saveSettings({ statsRetentionDays: value }))
+    } }, t('analytics.save_retention')),
+    retentionNotice ? React.createElement('p', { role: 'status', className: retentionNotice.ok ? 'cb-alert-ok' : 'cb-alert-bad' }, retentionNotice.message) : null,
     React.createElement('details', null, React.createElement('summary', null, t('surface.rates_title')),
       React.createElement('p', { className: 'cb-section-desc' }, t('surface.cost_hint', { currency: draft.costCurrency || 'USD' })),
       React.createElement('div', { className: 'cb-grid-2' },
@@ -27,6 +37,7 @@ function DisplaySettings({ status, draft, busy, saveSettings, t }) {
         fields.map(([key, label]) => React.createElement('label', { className: 'cb-field', key }, `${t(`surface.${label}`)} (${unit})`, React.createElement('input', { className: 'cb-input', type: 'number', min: 0, step: 'any', value: values[key] || '', disabled: !!busy, placeholder: '—', onChange: (event) => setValues({ ...values, [key]: event.target.value }) })))),
       React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-primary', disabled: !!busy || !model, onClick: save }, t('surface.save_rate'))),
       notice ? React.createElement('div', { className: notice.ok ? 'cb-alert-ok' : 'cb-alert-bad', role: 'status' }, notice.message) : null,
+      React.createElement(EconomySettings, { draft, busy, saveSettings, model, t }),
       draft.costRates?.length ? React.createElement('div', { className: 'cb-table-box' }, React.createElement('table', { className: 'cb-table' },
         React.createElement('thead', null, React.createElement('tr', null,
           React.createElement('th', null, t('durable.model')),

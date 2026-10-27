@@ -520,7 +520,8 @@ function SettingsPage(props) {
       onImported: load,
       t,
     }),
-    React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, t }),
+    React.createElement(AccountsSection, { status, busy, handlePinAccount, handleAddAccount, handleDeleteAccount, onChanged: load, t }),
+    React.createElement(AccountHistory, { t }),
     ]],
     showUsage && ['quota', [React.createElement(QuotaSection, { keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t })]],
     ['models', [

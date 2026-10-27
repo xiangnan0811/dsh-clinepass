@@ -256,7 +256,8 @@ test('statistics endpoints validate filters, keep reset CSRF protection and expo
   })
   const response = () => ({ headers: {}, writeHead(code, headers) { this.code = code; this.headers = headers }, end(body) { this.body = body } })
   const req = { method: 'GET', url: '/dsh-clinebot/stats?from=2026-02-31', headers: { host: 'localhost', origin: 'http://localhost' }, socket: { remoteAddress: '127.0.0.1' } }
-  const invalid = response(); await routes[0].handler(req, invalid); assert.equal(invalid.code, 400)
-  const exported = response(); await routes[1].handler({ ...req, url: '/dsh-clinebot/stats/export' }, exported); assert.equal(exported.code, 200); assert.match(exported.headers['Content-Type'], /text\/csv/)
-  const denied = response(); await routes[2].handler({ ...req, method: 'POST', headers: { ...req.headers, origin: 'https://elsewhere.test' } }, denied); assert.equal(denied.code, 403); assert.equal(resets, 0)
+  const route = suffix => routes.find(row => row.path === `/dsh-clinebot/stats${suffix}`)
+  const invalid = response(); await route('').handler(req, invalid); assert.equal(invalid.code, 400)
+  const exported = response(); await route('/export').handler({ ...req, url: '/dsh-clinebot/stats/export' }, exported); assert.equal(exported.code, 200); assert.match(exported.headers['Content-Type'], /text\/csv/)
+  const denied = response(); await route('/reset').handler({ ...req, method: 'POST', headers: { ...req.headers, origin: 'https://elsewhere.test' } }, denied); assert.equal(denied.code, 403); assert.equal(resets, 0)
 })

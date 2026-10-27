@@ -80,7 +80,8 @@ function SidebarQuota(props) {
     percent === null ? React.createElement('text', { x: 10, y: 14, textAnchor: 'middle', fill: 'currentColor', fontSize: 12 }, '?') :
       React.createElement('circle', { cx: 10, cy: 10, r: radius, fill: 'none', stroke: percent >= 95 ? 'var(--dsw-alias-state-error-primary)' : 'currentColor', strokeWidth: 2.5, strokeDasharray: circumference, strokeDashoffset: circumference * (1 - percent / 100), transform: 'rotate(-90 10 10)' }))
   return React.createElement('button', { type: 'button', className: wide ? 'cb-sidebar-quota cb-sidebar-quota-wide' : 'cb-sidebar-quota', title: text, 'aria-label': `${t('surface.details')} · ${text}`, onClick: openDetails }, ring,
-    wide ? React.createElement('span', { className: 'cb-sidebar-copy' }, React.createElement('b', null, 'ClinePass'), React.createElement('span', null, text)) : null)
+    wide ? React.createElement('span', { className: 'cb-sidebar-copy' }, React.createElement('b', null, 'ClinePass'), React.createElement('span', null, text),
+      React.createElement(QuotaForecast, { usage: snapshot.data, identity: JSON.stringify([prefs.baseUrl, prefs.apiKeyEnv, prefs.activeAccount, snapshot.data?.user?.email]), enabled: prefs.quotaForecastEnabled, t })) : null)
 }
 
 function ClineDetails(props) {
@@ -156,7 +157,20 @@ function ComposerUsageContent(props) {
   const t = props.t || makeT(en, en)
   const preferences = props.preferences
   const projection = props.useProjection('clinepassUsage')
-  const result = sessionEstimate(projection, preferences)
+  const request = useClientRequests()
+  const [referenceRates, setReferenceRates] = React.useState([])
+  const bindingKey = JSON.stringify(preferences.priceBindings || [])
+  React.useEffect(() => {
+    let active = true
+    setReferenceRates([])
+    if (preferences.costCurrency === 'USD' && preferences.priceBindings?.length) request(`${ROUTE_PREFIX}/prices`).then(async res => {
+      if (!res.ok) return
+      const data = await res.json()
+      if (active && data.ok) setReferenceRates(data.rates || [])
+    }).catch(() => {}) // Unavailable references leave the estimate unknown.
+    return () => { active = false }
+  }, [request, bindingKey, preferences.costCurrency, projection?.calls])
+  const result = sessionEstimate(projection, { ...preferences, costRates: [...(preferences.costRates || []), ...referenceRates] })
   const [open, setOpen] = React.useState(false)
   const [routingRefresh, setRoutingRefresh] = React.useState(0)
   const routing = useRecentRouting(props.sessionId, projection, `${open}:${routingRefresh}`)

@@ -13,7 +13,7 @@ DeepSeek Harness 的 ClinePass 插件，维护在这个仓库：
 
 ## 从本仓库安装
 
-`0.7.5` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
+`0.8.0` 版本要求 DeepSeek Harness `^0.2.1-rc.2`。
 
 DeepSeek Harness 通过 pnpm 安装插件。GitHub 地址就够用：
 
@@ -55,9 +55,12 @@ dsh plugin --profile web add github:xiangnan0811/dsh-clinepass
 
 发现列表不修改已验证套餐，不发送推理请求。套餐过滤仍然生效，所选型号被过滤时会提示；用户保存的自定义声明和参数在账户切换后保留。参数预填是接口参考值，不代表已实测该账户的渠道能力。
 
-`0.7.5` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
+`0.8.0` 版本面向 DeepSeek Harness `0.2.1-rc.2`（2026-10-19 的 `next`）。`0.1.7-rc.2` 的验证记录属于先前版本。设置侧栏条目是 `settings.section` `dsh-clinebot`。同一页也注册为 `plugins.row.config`，键为 `dsh-clinepass#dsh-clinebot`。
 
 宿主提供 `connection.requestRejection` 时，全部 `/dsh-clinebot/*` 接口都要求 DSH 登录认证，包括读取和更新检查。请通过 `dsh web` 打印的地址登录。未认证返回 401，宿主或来源校验失败返回 403；设置写入仍保留来源校验。
+写操作必须带 Origin 或 Referer，不能仅凭 Fetch Metadata 获准；转发主机头仅接受来自 loopback 代理的值，宿主认证仍然必需。
+
+`0.8.0` 还通过了 DSH `0.2.1-rc.3` 的隔离 Web 和直连 headless 夹具验收。headless 默认关闭托管凭据服务，本插件需要该服务：在对应 profile 的 patch 中启用 `{id: credentials, disabled: false}`，并把 `agent-default-model` 设为提供方 `clinebot` 及一个已启用模型；仍可用启动环境变量供给密钥。上游可选 TUI 设置集成暂缓，官方宿主尚无可验证的 `tuiSettingsSections` 消费者。
 
 ## 配置
 
@@ -85,6 +88,11 @@ dsh-clinebot:
 | `smokeTimeoutMs` | `25000` | 冒烟测试 |
 | `webSearchEnabled` | `false` | 按需注册宿主搜索提供方 `clinebot`，不改全局搜索选择 |
 | `searchTimeoutMs` | `15000` | 搜索期限，含读取响应体 |
+| `statsRetentionDays` | `95` | 分钟汇总保留 0–3650 天，0 为不限；每日汇总长期保留 |
+| `quotaForecastEnabled` | `false` | 用间隔至少一分钟的同账户、同窗口实测样本估算配额消耗速度 |
+| `priceAutoSync` | `false` | 模型同步时自动刷新公共参考价格，最多每六小时一次 |
+| `priceBindings` | `[]` | 显式 `{model, provider, sourceModel}` 价格绑定；手动 `costRates` 优先 |
+| `dailyBudget`、`monthlyBudget` | `0` | 可选 UTC 日／月费用估算限额，使用 `costCurrency`，0 分别表示关闭 |
 
 设置 → 模型里列出的是已勾选的模型。上下文、最大输出、请求预算、输入和思考可以在卡片里按模型覆盖。覆盖留空先继承批量默认值，再继承目录。原生模型页的手改值保存在 `hostModelOverrides`，隐藏模型和重启后继续保留；在本卡片显式修改或恢复对应字段会清除该手改值。逐模型默认思考档在原生请求冻结前生效，调用方显式选档和关闭优先。在 next 的 LLM 服务中，只有 `clinebot` 转交给 ClinePass 原生适配器，以观察实际渠道 usage；仍可在“设置 → 模型”中编辑参数。代理切回直连时保留适配器注册。
 
@@ -127,6 +135,14 @@ upstreamPins:
 请求和 token 汇总归最终账户，实际尝试另按调用账户汇总，回退前的失败不会转记给后一个账户。CSV 用 `scope=request|attempt` 区分两类行，不能把它们直接相加作为逻辑请求数。
 
 存储故障会显示错误，不阻断模型请求；未写入的计量暂留内存。重置清除本配置档的全部统计，包括筛选范围外的日期；损坏文件先归档，账户和模型配置保留。
+
+使用趋势提供 P50／P95 延迟分桶边界、星期／小时热力图、分钟时间范围（不含结束分钟）、失败过滤和 JSON 导出。热力图使用浏览器当前的 UTC 偏移。旧每日汇总保留，不伪造分钟或分位数样本；时间范围和失败过滤仅包含保留的分钟明细。账户历史独立保留最近 200 条选路、冷却、恢复和切换事件，统计重置不清除这些事件。附加账户支持重命名和清除已存密钥，保留账户条目及钉选；环境密钥须在来源处移除。
+
+“用量与费率”中可同步 `models.dev` 的公共 USD 参考价格，明确绑定提供方和模型后才使用。缓存位于当前配置档的 `clinepass/prices.json`；失败保留上次成功目录并显示错误与更新时间。不会自动替用户选价格，缺少缓存价格保持未知；其他币种使用手动费率。手动费率整行优先，包括未补齐的旧费率。
+
+日／月预算默认关闭，启用后在原生调用、代理、冒烟和测速开始前，按当前费率检查本配置档已记录用量。缺少计量、费率或可用统计时明确阻止新调用；在途请求仍可能超过限额。它是本地估算，不代表账单或订阅配额；重置统计也会重置预算已用金额。切换币种只改变手动费率和限额的单位，不做汇率换算。`/cline cost`、`/cline budget` 显示同一估算。
+
+配额速度预测也默认关闭，只使用同账户、同窗口的实际连续采样；样本不足、错误、重置和账户切换时清空预测，不影响路由。
 
 “原生网页搜索”区分模型内置搜索与独立搜索提供方。[Cline 官方代码](https://github.com/cline/cline/blob/40c5d99031fe1128189c5b52e40638d2b7787754/sdk/packages/llms/src/providers/builtins.ts)为 ClinePass 声明了模型内置搜索能力；这不能证明 `POST /alpha/web-search` 是 ClinePass 可用的独立接口。原适配保留在“ClinePass 独立搜索 · 实验性”中，默认关闭，真实渠道尚未验证。仅在确认网关支持该接口后启用，再在宿主网页搜索设置中选择 `clinebot`；注册不等于验证成功。每次最多 10 条结果，默认 5 条，错误与空结果区分，关闭会注销并取消在途搜索。
 
