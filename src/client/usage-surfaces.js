@@ -125,9 +125,11 @@ function ClineDetails(props) {
             React.createElement(ModelProbe, { status, t })) : error ? null : React.createElement('div', { className: 'cb-section-desc' }, t('surface.loading'))))) })
 }
 
+// 与统计面板的参考估算一致：缺失缓存单价按输入单价计，未上报的用量按零计，没有价格的模型不计入。
 function sessionEstimate(projection, preferences) {
   if (!projection) return { calls: null, tokens: null, amount: null, reason: 'loading' }
-  let calls = 0, tokens = 0, amount = 0, completeTokens = true, reason = ''
+  const valid = (value) => Number.isFinite(value) && value >= 0
+  let calls = 0, tokens = 0, amount = 0, priced = 0, completeTokens = true, missingRate = false
   for (const [model, row] of Object.entries(projection.models)) {
     if (!row.calls) continue
     calls += row.calls
@@ -135,16 +137,14 @@ function sessionEstimate(projection, preferences) {
     if (totals.totalTokens.samples !== row.calls) completeTokens = false
     tokens += totals.totalTokens.sum
     const rate = preferences.costRates?.find((entry) => entry.model === model)
-    if (!rate) reason = 'missing_rate'
-    else {
-      for (const [field, price] of [['inputTokens', 'inputPerMillion'], ['outputTokens', 'outputPerMillion'], ['cacheReadTokens', 'cacheReadPerMillion'], ['cacheWriteTokens', 'cacheWritePerMillion']]) {
-        if (!Number.isFinite(rate[price]) || rate[price] < 0) { reason ||= 'missing_rate'; continue }
-        if (totals[field].samples !== row.calls) { reason ||= 'missing_usage'; continue }
-        amount += totals[field].sum * rate[price] / 1000000
-      }
+    if (!rate || !valid(rate.inputPerMillion) || !valid(rate.outputPerMillion)) { missingRate = true; continue }
+    priced++
+    for (const [field, price] of [['inputTokens', 'inputPerMillion'], ['outputTokens', 'outputPerMillion'], ['cacheReadTokens', 'cacheReadPerMillion'], ['cacheWriteTokens', 'cacheWritePerMillion']]) {
+      amount += totals[field].sum * (valid(rate[price]) ? rate[price] : rate.inputPerMillion) / 1000000
     }
   }
-  return { calls, tokens: completeTokens ? tokens : null, amount: reason || !calls ? null : amount, reason: reason || (!calls ? 'empty' : '') }
+  const reason = !calls ? 'empty' : !priced ? 'missing_rate' : missingRate ? 'cost_partial' : ''
+  return { calls, tokens: completeTokens ? tokens : null, amount: priced ? amount : null, reason }
 }
 
 function ComposerUsage(props) {
@@ -159,25 +159,27 @@ function ComposerUsageContent(props) {
   const projection = props.useProjection('clinepassUsage')
   const request = useClientRequests()
   const [referenceRates, setReferenceRates] = React.useState([])
+  const [open, setOpen] = React.useState(false)
   const bindingKey = JSON.stringify(preferences.priceBindings || [])
+  const sessionModels = Object.entries(projection?.models || {}).filter(([, row]) => row.calls).map(([model]) => model).sort().join(',')
   React.useEffect(() => {
     let active = true
     setReferenceRates([])
-    if (preferences.costCurrency === 'USD' && preferences.priceBindings?.length) request(`${ROUTE_PREFIX}/prices`).then(async res => {
+    // 费用只在弹窗中展示，打开时才按会话模型请求参考价。
+    if (open && sessionModels && (preferences.costCurrency || 'USD') === 'USD') request(`${ROUTE_PREFIX}/prices?models=${encodeURIComponent(sessionModels)}`).then(async res => {
       if (!res.ok) return
       const data = await res.json()
-      if (active && data.ok) setReferenceRates(data.rates || [])
+      if (active && data.ok) setReferenceRates(data.sessionRates || [])
     }).catch(() => {}) // Unavailable references leave the estimate unknown.
     return () => { active = false }
-  }, [request, bindingKey, preferences.costCurrency, projection?.calls])
+  }, [request, open, bindingKey, preferences.costCurrency, sessionModels])
   const result = sessionEstimate(projection, { ...preferences, costRates: [...(preferences.costRates || []), ...referenceRates] })
-  const [open, setOpen] = React.useState(false)
   const [routingRefresh, setRoutingRefresh] = React.useState(0)
   const routing = useRecentRouting(props.sessionId, projection, `${open}:${routingRefresh}`)
   const latest = routing.records[0]
   const upstreamText = latest ? t('routing.last_response', { provider: latest.upstream || t('surface.unknown') })
     : routing.loading ? t('surface.loading') : routing.error ? t('routing.unavailable') : t('routing.empty')
-  const cost = result.amount === null ? t('surface.cost_unknown') : `${preferences.costCurrency || 'USD'} ${result.amount > 0 && result.amount < 0.000001 ? '< 0.000001' : result.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}`
+  const cost = result.amount === null ? t('surface.cost_unknown') : `≈ ${formatMoney(result.amount, preferences.costCurrency || 'USD')}`
   return React.createElement('div', { className: 'cb-composer-usage' },
     React.createElement('button', { type: 'button', className: 'cb-composer-button', 'aria-expanded': open, onClick: () => setOpen((value) => !value) },
       `ClinePass · ${result.calls === null ? t('surface.loading') : t('surface.calls', { count: result.calls })} · ${result.tokens === null ? t('surface.unknown') : result.tokens.toLocaleString() + ' tok'} · ${upstreamText}${latest ? ' · ' + t(`routing.state_${latest.upstreamPinStatus || 'unrecorded'}`) : ''}`),

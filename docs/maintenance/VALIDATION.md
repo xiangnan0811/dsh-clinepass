@@ -1,5 +1,30 @@
 # Validation record
 
+## 0.8.1 overview rework and reference cost (2026-10-27)
+
+Candidate above `7d3578f`. `npm test` passes 227 tests, including lint, locale
+parity and client consistency. The client is 228929 bytes (0.8.0: 248749); the
+bundle test now rejects any local binding that would shadow the `h` alias.
+
+Tests cover reference-price ranking, the loose estimate (missing cache prices use
+the input price, unreported tokens count as zero, unpriced models are skipped),
+budgets that block only when the estimate reaches the limit, the fallback for
+parallel quota identity, and recent-request paging (10 rows by default, 50 at most).
+
+An `npm pack` archive was installed into an isolated DSH `0.2.1-rc.4` Web profile
+with local quota/plan fixtures and a copy of retained statistics. On first open,
+Chromium showed the masked email, the plan badge and a `≈` reference cost without a
+manual quota refresh. It also exercised range presets and the custom range, model,
+account and failure filters, the export menu, breakdown tabs, sticky config
+navigation, and the budget line reaching and then clearing at a 0.01 limit.
+Screenshots were inspected in Chinese light and dark themes, at 1440px and 820px.
+
+The settings smoke test refuses loopback base URLs before the budget guard, so it
+does not reach a local gateway. Budget blocking before network activity remains
+covered by the native-adapter, proxy and settings tests. No live ClinePass
+account, billing, Desktop or CI validation is claimed. The user's daily profile
+and global host installation were unchanged.
+
 ## 0.8.0 upstream adoption (2026-10-27)
 
 Candidate above `3e20cd3`, selectively adopting upstream `fd72f12` (0.6.16).

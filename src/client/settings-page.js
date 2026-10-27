@@ -592,9 +592,10 @@ function SettingsPage(props) {
       React.createElement('div', { className: 'cb-status' },
         React.createElement('span', { className: `cb-badge ${healthOk ? 'cb-badge-ok' : 'cb-badge-bad'}` }, healthOk ? t('badge.online', { latency: status.health?.latencyMs }) : t('badge.offline')),
         React.createElement('span', { className: `cb-badge ${keyPresent ? 'cb-badge-ok' : 'cb-badge-warn'}` }, keyPresent ? t('badge.key_ok', { source: sourceLabel(status.key?.source, t) }) : t('badge.key_missing')),
-        React.createElement('span', { className: `cb-badge ${isRegistered ? 'cb-badge-ok' : 'cb-badge-warn'}` }, isRegistered ? t('badge.registered', { count: enabledCount }) : t('badge.not_registered'))),
-      React.createElement('nav', { className: 'cb-section-nav', 'aria-label': t('title') }, sections.map(([id]) =>
-        React.createElement('button', { type: 'button', className: 'cb-chip', key: id, onClick: () => jump(id) }, t(`nav.${id}`))))),
+        React.createElement('span', { className: `cb-badge ${isRegistered ? 'cb-badge-ok' : 'cb-badge-warn'}` }, isRegistered ? t('badge.registered', { count: enabledCount }) : t('badge.not_registered')))),
+    // 分区导航吸顶，长页面滚动时仍可跳转。
+    React.createElement('nav', { className: 'cb-section-nav', 'aria-label': t('title') }, sections.map(([id]) =>
+      React.createElement('button', { type: 'button', className: 'cb-chip', key: id, onClick: () => jump(id) }, t(`nav.${id}`)))),
 
     scopeNote ? React.createElement('div', { className: 'cb-banner-warning' }, scopeNote) : null,
     err ? React.createElement('div', { className: 'cb-alert-bad' }, err) : null,

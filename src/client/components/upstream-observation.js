@@ -16,7 +16,9 @@ function UpstreamObservation({ record, t }) {
         React.createElement('div', { key }, React.createElement('span', null, t(`routing.${key}`)), React.createElement('b', null, value))))) : null)
 }
 
-const ROUTING_PAGE = 20
+// 默认展示最近 10 条，逐页展开，最多 50 条。
+const ROUTING_PAGE = 10
+const ROUTING_MAX = 50
 const ROUTING_TONE = { matched: 'cb-badge-ok', mismatch: 'cb-badge-bad', unverified: 'cb-badge-warn', 'not-attached': 'cb-badge-warn' }
 
 function routingTime(stamp) {
@@ -51,14 +53,14 @@ function RoutingRecord({ row, t }) {
 
 function RoutingHistory({ records, t }) {
   const [limit, setLimit] = React.useState(ROUTING_PAGE)
-  const rows = records || []
+  const rows = (records || []).slice(0, ROUTING_MAX)
   return React.createElement('section', { className: 'cb-routing-history' },
-    React.createElement('div', { className: 'cb-subtitle' }, t('routing.history')),
-    React.createElement('p', { className: 'cb-footnote' }, t('routing.history_hint')),
+    React.createElement('div', { className: 'cb-subtitle', title: t('routing.history_hint') }, t('routing.history')),
     !rows.length ? React.createElement('p', { className: 'cb-section-desc' }, t('routing.empty')) :
       React.createElement('div', { className: 'cb-routing-list', 'aria-label': t('routing.history') }, rows.slice(0, limit).map((row) =>
         React.createElement(RoutingRecord, { row, t, key: row.id }))),
-    rows.length > limit ? React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', onClick: () => setLimit(limit + ROUTING_PAGE) }, t('routing.more', { count: rows.length - limit }))) : null)
+    rows.length > limit ? React.createElement('div', { className: 'cb-row' }, React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm cb-btn-ghost', onClick: () => setLimit(limit + ROUTING_PAGE) }, t('routing.more', { count: rows.length - limit }))) : null,
+    React.createElement('p', { className: 'cb-footnote' }, t('routing.history_hint')))
 }
 
 // Session identity gates rendering as well as fetch completion. Never show a

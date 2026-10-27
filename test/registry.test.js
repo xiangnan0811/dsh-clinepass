@@ -526,6 +526,42 @@ function usageFetch(plan) {
   }
 }
 
+test('account and plan details load alongside limits and survive a later secondary failure', async () => {
+  clearUsageCache()
+  const key = `identity-${Date.now()}`
+  const working = usageFetch({ title: 'Cline Pass', pricePerSeatCents: 999 })
+  const started = []
+  let releaseLimits
+  const gate = new Promise((resolve) => { releaseLimits = resolve })
+  const pending = fetchUsageLimits('https://api.cline.bot/api/v1', key, {
+    bypassCache: true, remember: false,
+    fetchImpl: async (url) => {
+      started.push(String(url).split('/api/v1')[1])
+      if (String(url).endsWith('/usage-limits')) await gate
+      return working(url)
+    },
+  })
+  await new Promise((resolve) => setImmediate(resolve))
+  // Secondary requests start before the limits response arrives.
+  assert.deepEqual([...started].sort(), ['/users/me', '/users/me/plan', '/users/me/plan/usage-limits'])
+  releaseLimits()
+  const first = await pending
+  assert.equal(first.user.email, 'alice@example.com'); assert.equal(first.plan, 'Cline Pass ($9.99/mo)')
+  const degraded = await fetchUsageLimits('https://api.cline.bot/api/v1', key, {
+    bypassCache: true, remember: false,
+    fetchImpl: async (url) => String(url).endsWith('/usage-limits') ? working(url) : Promise.reject(new Error('timeout')),
+  })
+  assert.equal(degraded.ok, true)
+  assert.equal(degraded.user.email, 'alice@example.com'); assert.equal(degraded.plan, 'Cline Pass ($9.99/mo)')
+  assert.equal(degraded.planModelsVerified, false)
+  clearUsageCache()
+  const cold = await fetchUsageLimits('https://api.cline.bot/api/v1', key, {
+    bypassCache: true, remember: false,
+    fetchImpl: async (url) => String(url).endsWith('/usage-limits') ? working(url) : Promise.reject(new Error('timeout')),
+  })
+  assert.equal(cold.user.email, null); assert.equal(cold.plan, 'ClinePass')
+})
+
 test('plan labels skip internal names and keep a cancellation timestamp', async () => {
   assert.equal(maskAccountEmail(''), '')
   assert.equal(maskAccountEmail('not-an-email'), '')

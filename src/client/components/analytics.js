@@ -1,29 +1,22 @@
-function AnalyticsView({ data, t }) {
+function ActivityHeatmap({ analytics, t }) {
   const [cell, setCell] = React.useState(null)
-  const analytics = data.analytics
-  if (!analytics) return null
+  if (!analytics?.detailedRequests) return null
   const maximum = Math.max(1, ...analytics.heatmap.flat())
-  const percentile = value => !value?.samples ? '—' : value.overflow ? `> ${value.lowerMs.toLocaleString()} ms` : `≤ ${value.upperMs.toLocaleString()} ms`
   const days = t('analytics.weekdays').split(',')
-  return React.createElement('div', { className: 'cb-block cb-analytics' },
-    React.createElement('div', { className: 'cb-subtitle' }, t('analytics.title')),
-    React.createElement('p', { className: 'cb-footnote' }, t('analytics.coverage', { count: analytics.detailedRequests, total: data.summary.requests, since: analytics.detailSince ? new Date(analytics.detailSince).toLocaleString() : '—', days: analytics.retentionDays || t('analytics.forever') })),
-    analytics.detailedOnly ? React.createElement('p', { className: 'cb-footnote' }, t('analytics.detailed_only')) : null,
-    React.createElement('div', { className: 'cb-grid-2' }, ['latencyMs', 'ttftMs'].map(field => React.createElement('div', { key: field, className: 'cb-kpi' },
-      React.createElement('span', null, t(`analytics.${field}`)),
-      React.createElement('b', null, `P50 ${percentile(analytics.percentiles[field].p50)}`),
-      React.createElement('small', null, `P95 ${percentile(analytics.percentiles[field].p95)} · ${analytics.percentiles[field].p50.samples}/${data.summary.requests}`)))),
+  const label = (day, hour) => `${days[day]} ${hour}:00–${hour + 1}:00 · ${t('surface.calls', { count: analytics.heatmap[day][hour].toLocaleString() })}`
+  return React.createElement('section', { className: 'cb-panel' },
+    React.createElement('div', { className: 'cb-subhead' },
+      React.createElement('span', { className: 'cb-subtitle' }, t('activity.title')),
+      React.createElement('span', { className: 'cb-footnote', role: 'status' }, cell ? label(cell.day, cell.hour) : t('activity.detail', { count: analytics.detailedRequests.toLocaleString() }))),
     React.createElement('div', { className: 'cb-heatmap-scroll' }, React.createElement('div', { className: 'cb-heatmap', role: 'group', 'aria-label': t('analytics.heatmap') },
       React.createElement('span'), Array.from({ length: 24 }, (_, hour) => React.createElement('span', { key: `h${hour}`, className: 'cb-heatmap-hour' }, hour % 3 === 0 ? hour : '')),
       analytics.heatmap.map((hours, day) => React.createElement(React.Fragment, { key: day }, React.createElement('span', { className: 'cb-heatmap-day' }, days[day]),
         hours.map((count, hour) => React.createElement('button', { type: 'button', key: hour, className: 'cb-heatmap-cell',
-          style: { '--cb-heat': `${count ? 20 + count / maximum * 70 : 0}%` },
-          title: `${days[day]} ${hour}:00 · ${count}`, 'aria-label': `${days[day]} ${hour}:00 · ${count}`, 'aria-pressed': cell?.day === day && cell?.hour === hour,
-          onClick: () => setCell({ day, hour }) })))))),
-    React.createElement('div', { className: 'cb-footnote', role: 'status' }, cell ? `${days[cell.day]} ${cell.hour}:00–${cell.hour + 1}:00 · ${t('surface.calls', { count: analytics.heatmap[cell.day][cell.hour] })}` : t('analytics.heatmap')),
-    data.cost ? React.createElement('div', { className: 'cb-usage-row' }, React.createElement('span', null, t('analytics.cost')),
-      React.createElement('b', null, data.cost.amount === null ? t('surface.cost_unknown') : `${data.cost.currency} ${data.cost.amount.toFixed(6)}`)) : null,
-    data.cost ? React.createElement('p', { className: 'cb-footnote' }, `${t('analytics.savings')}: ${data.cost.cacheSavings === null ? '—' : `${data.cost.currency} ${data.cost.cacheSavings.toFixed(6)}`} · ${data.cost.measuredRequests}/${data.cost.requests}`) : null)
+          style: { '--cb-heat': `${count ? 18 + count / maximum * 82 : 0}%` },
+          title: label(day, hour), 'aria-label': label(day, hour), 'aria-pressed': cell?.day === day && cell?.hour === hour,
+          onClick: () => setCell(cell?.day === day && cell?.hour === hour ? null : { day, hour }) })))))),
+    React.createElement('div', { className: 'cb-heat-legend', 'aria-hidden': true }, t('activity.less'),
+      [0, 25, 50, 75, 100].map((heat) => React.createElement('i', { key: heat, className: 'cb-heatmap-cell', style: { '--cb-heat': `${heat ? 18 + heat * 0.82 : 0}%` } })), t('activity.more')))
 }
 
 function AccountHistory({ t }) {

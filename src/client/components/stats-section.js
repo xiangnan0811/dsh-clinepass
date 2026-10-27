@@ -7,30 +7,51 @@ function coveragePercent(samples, total) {
   return share ? `${share}%` : '<0.1%'
 }
 
+function StatsExportMenu({ disabled, onExport, t }) {
+  const menu = React.useRef(null)
+  const choose = (kind) => { if (menu.current) menu.current.open = false; onExport(kind) }
+  return React.createElement('details', { className: 'cb-menu', ref: menu },
+    React.createElement('summary', { className: 'cb-btn cb-btn-sm cb-btn-ghost', 'aria-disabled': disabled }, t('stats.export'), React.createElement(Chevron)),
+    React.createElement('div', { className: 'cb-menu-list', role: 'menu' },
+      React.createElement('button', { type: 'button', role: 'menuitem', disabled, onClick: () => choose('export') }, 'CSV'),
+      React.createElement('button', { type: 'button', role: 'menuitem', disabled, onClick: () => choose('json') }, 'JSON')))
+}
+
 function StatsSection({ status, t }) {
   const request = useClientRequests()
   const [data, setData] = React.useState(null)
-  const [filters, setFilters] = React.useState({})
-  const [applied, setApplied] = React.useState(() => ({ timezoneOffsetMinutes: new Date().getTimezoneOffset() }))
-  const [group, setGroup] = React.useState('day')
+  const [range, setRange] = React.useState('all')
+  const [timeWindow, setTimeWindow] = React.useState({ since: '', until: '' })
+  const [filters, setFilters] = React.useState({ model: '', account: '', errorsOnly: '' })
+  const [loading, setLoading] = React.useState(true)
   const [busy, setBusy] = React.useState('')
   const [error, setError] = React.useState('')
   const [confirmReset, setConfirmReset] = React.useState(false)
-  const [timeRange, setTimeRange] = React.useState({ since: '', until: '' })
   const download = React.useRef(null)
   const generation = React.useRef(0)
-  const query = new URLSearchParams(Object.entries(applied).filter(([, value]) => value)).toString()
+  const query = new URLSearchParams(Object.entries({ ...filters, ...timeWindow, timezoneOffsetMinutes: new Date().getTimezoneOffset() }).filter(([, value]) => value !== '')).toString()
   const load = React.useCallback(async () => {
     const current = ++generation.current
+    setLoading(true)
     try {
       const res = await request(`${ROUTE_PREFIX}/stats?${query}`)
       const result = await res.json()
       if (!res.ok || !result.ok) throw new Error(result.error || `HTTP ${res.status}`)
       if (current === generation.current) { setData(result); setError('') }
-    } catch (failure) { if (current === generation.current) throw failure }
+    } catch (failure) {
+      if (current === generation.current) setError(String(failure.message || failure))
+    } finally {
+      if (current === generation.current) setLoading(false)
+    }
   }, [request, query])
-  React.useEffect(() => { setData(null); load().catch((failure) => setError(String(failure.message || failure))); return () => { generation.current++ } }, [load])
+  // 切换筛选时保留上一份结果并淡化显示，避免整块内容闪烁。
+  React.useEffect(() => { void load(); return () => { generation.current++ } }, [load])
   React.useEffect(() => () => { if (download.current) URL.revokeObjectURL(download.current) }, [])
+  const chooseRange = (value) => {
+    setRange(value)
+    if (value === 'all') setTimeWindow({ since: '', until: '' })
+    else if (value !== 'custom') setTimeWindow(presetWindow(Number(value)))
+  }
   async function action(kind) {
     setBusy(kind); setError('')
     try {
@@ -43,103 +64,59 @@ function StatsSection({ status, t }) {
         const link = document.createElement('a')
         link.href = download.current; link.download = `clinepass-statistics.${json ? 'json' : 'csv'}`
         document.body.appendChild(link); link.click(); link.remove()
-      } else {
-        if (kind === 'reset') {
-          const res = await request(`${ROUTE_PREFIX}/stats/reset`, { method: 'POST' })
-          if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`)
-          setConfirmReset(false)
-        }
+      } else if (kind === 'sync') {
+        const res = await request(`${ROUTE_PREFIX}/prices/sync`, { method: 'POST' })
+        const result = await res.json()
+        if (!res.ok || !result.ok) throw new Error(result.error || `HTTP ${res.status}`)
         await load()
+      } else if (kind === 'reset') {
+        const res = await request(`${ROUTE_PREFIX}/stats/reset`, { method: 'POST' })
+        if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`)
+        setConfirmReset(false)
+        await load()
+      } else {
+        // 预设范围随刷新滚动到当前时间；同一分钟内时间窗不变，直接重新读取。
+        const next = range !== 'all' && range !== 'custom' ? presetWindow(Number(range)) : null
+        if (next && next.until !== timeWindow.until) setTimeWindow(next)
+        else await load()
       }
     } catch (failure) { setError(String(failure.message || failure)) }
     finally { setBusy('') }
   }
-  const measured = (totals, field, average = false) => {
-    const value = totals.measurements[field]
-    if (!value.samples) return t('durable.unknown')
-    const amount = average ? Math.round(value.sum / value.samples) : value.sum
-    return `${amount.toLocaleString()}${average ? ' ms' : ''}`
-  }
-  const coverageTitle = (totals, field) => t('durable.coverage_title', { samples: totals.measurements[field].samples, total: totals.requests })
-  const coverage = (totals, field) => React.createElement('span', { className: 'cb-coverage', title: coverageTitle(totals, field) }, coveragePercent(totals.measurements[field].samples, totals.requests))
-  const summary = data?.summary
   const choices = (key) => {
     const options = new Map((key === 'model' ? status.availableModels || [] : status.accounts || []).map((row) => [key === 'model' ? row.id : row.apiKeyEnv, row.name || row.label || row.apiKeyEnv]))
     for (const row of data?.grouped?.[key] || []) if (!options.has(row.value)) options.set(row.value, row.value)
     if (key === 'account') for (const row of data?.attemptAccounts || []) if (!options.has(row.value)) options.set(row.value, row.value)
     return [...options]
   }
-  const fields = ['inputTokens', 'promptTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens', 'totalTokens', 'latencyMs', 'ttftMs']
-  const percent = (part, total) => total ? `${Math.floor(part / total * 1000) / 10}%` : '—'
-  const compact = (field) => {
-    const value = summary.measurements[field]
-    return value.samples ? value.sum.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 2 }) : t('durable.unknown')
-  }
-  const covered = (field) => ({ note: `${t('durable.col_coverage')} ${coveragePercent(summary.measurements[field].samples, summary.requests)}`, noteTitle: coverageTitle(summary, field) })
-  const kpis = summary ? [
-    { label: t('durable.kpi_requests'), value: summary.requests.toLocaleString(), note: t('durable.kpi_requests_sub', { attempts: summary.attempts.toLocaleString(), failure: summary.failure, limited: summary.rateLimits }) },
-    { label: t('durable.kpi_success'), value: percent(summary.success, summary.requests), note: `${summary.success.toLocaleString()} / ${summary.requests.toLocaleString()}` },
-    { label: t('durable.totalTokens'), value: compact('totalTokens'), valueTitle: measured(summary, 'totalTokens'), ...covered('totalTokens') },
-    { label: t('durable.latencyMs'), value: measured(summary, 'latencyMs', true), ...covered('latencyMs') },
-    { label: t('durable.ttftMs'), value: measured(summary, 'ttftMs', true), ...covered('ttftMs') },
-  ] : []
-  const table = (head, rows) => React.createElement('div', { className: 'cb-table-box' }, React.createElement('table', { className: 'cb-table' },
-    head ? React.createElement('thead', null, React.createElement('tr', null, head.map(([label, numeric]) => React.createElement('th', { key: label, className: numeric ? 'cb-num' : undefined }, label)))) : null,
-    React.createElement('tbody', null, rows)))
+  const summary = data?.summary
+  const analytics = data?.analytics
+  const exportable = !!data && !data.error && !busy
   return React.createElement('div', { className: 'cb-section-card' },
-    React.createElement('div', { className: 'cb-section-title' }, t('durable.title'),
-      summary ? React.createElement('span', { className: 'cb-footnote' }, data.persisted ? t('durable.saved') : t('durable.pending', { count: data.pendingRequests })) : null),
-    React.createElement('div', { className: 'cb-section-desc' }, t('durable.desc')),
-    React.createElement('div', { className: 'cb-toolbar' }, [1, 7, 30, 90].map(days => React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', key: days, disabled: !!busy, onClick: () => {
-      const until = Math.ceil(Date.now() / 60000) * 60000
-      setError(''); setApplied({ ...filters, from: '', to: '', since: new Date(until - days * 86400000).toISOString(), until: new Date(until).toISOString(), timezoneOffsetMinutes: new Date().getTimezoneOffset() })
-    } }, days === 1 ? t('analytics.last24') : t('analytics.days', { days })))),
-    React.createElement('div', { className: 'cb-filter-grid' }, ['since', 'until'].map(key => React.createElement('label', { className: 'cb-field', key }, t(`analytics.${key}`),
-      React.createElement('input', { type: 'datetime-local', className: 'cb-input', step: 60, value: timeRange[key], onChange: event => setTimeRange({ ...timeRange, [key]: event.target.value }) })))),
-    React.createElement('div', { className: 'cb-toolbar' },
-      React.createElement('label', { className: 'cb-check' }, React.createElement('input', { type: 'checkbox', checked: filters.errorsOnly === '1', onChange: event => setFilters({ ...filters, errorsOnly: event.target.checked ? '1' : '' }) }), t('analytics.errors')),
-      React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy || !timeRange.since || !timeRange.until, onClick: () => {
-        const since = new Date(timeRange.since), until = new Date(timeRange.until)
-        if (!Number.isFinite(since.getTime()) || !Number.isFinite(until.getTime()) || until <= since) { setError(t('analytics.invalid_range')); return }
-        setError(''); setApplied({ ...filters, from: '', to: '', since: since.toISOString(), until: until.toISOString(), timezoneOffsetMinutes: new Date().getTimezoneOffset() })
-      } }, t('analytics.apply_range'))),
-    React.createElement('div', { className: 'cb-filter-grid' },
-      ['from', 'to'].map((key) => React.createElement('label', { className: 'cb-field', key }, t(`durable.${key}`), React.createElement('input', { className: 'cb-input', type: 'date', value: filters[key] || '', onChange: (event) => setFilters({ ...filters, [key]: event.target.value }) }))),
-      ['model', 'account'].map((key) => React.createElement('label', { className: 'cb-field', key }, t(`durable.${key}`), React.createElement('select', { className: 'cb-input', value: filters[key] || '', onChange: (event) => setFilters({ ...filters, [key]: event.target.value }) },
-        React.createElement('option', { value: '' }, t('durable.all')), choices(key).map(([value, name]) => React.createElement('option', { key: value, value }, name)))))),
-    React.createElement('div', { className: 'cb-toolbar' },
-      React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-primary', disabled: !!busy, onClick: () => { setError(''); setApplied({ ...filters, timezoneOffsetMinutes: new Date().getTimezoneOffset() }) } }, t('durable.apply')),
-      ['refresh', 'export', 'json'].map((kind) => React.createElement('button', { type: 'button', className: 'cb-btn', key: kind, disabled: !!busy || (kind !== 'refresh' && (!data || !!data.error)), onClick: () => action(kind) }, kind === 'json' ? t('analytics.json') : t(`durable.${kind}`))),
-      React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-danger cb-push', title: t('durable.reset_hint'), 'aria-expanded': confirmReset, disabled: !!busy, onClick: () => setConfirmReset(true) }, t('durable.reset'))),
+    React.createElement('div', { className: 'cb-section-title' },
+      React.createElement('span', { className: 'cb-title-group' }, t('stats.title'),
+        data && !data.persisted ? React.createElement('span', { className: 'cb-badge cb-badge-warn' }, t('durable.pending', { count: data.pendingRequests })) : null),
+      React.createElement('span', { className: 'cb-row' },
+        React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm cb-btn-ghost', disabled: !!busy || loading, onClick: () => action('refresh') }, t('durable.refresh')),
+        React.createElement(StatsExportMenu, { disabled: !exportable, onExport: action, t }))),
+    React.createElement(StatsFilters, { range, timeWindow, filters, choices, detailedOnly: !!analytics?.detailedOnly, disabled: !!busy, onRange: chooseRange, onWindow: setTimeWindow, onFilters: setFilters, t }),
+    error || data?.error ? React.createElement('div', { className: 'cb-alert-bad', role: 'alert' }, error || data.error) : null,
+    summary ? React.createElement('div', { className: loading ? 'cb-results cb-results-loading' : 'cb-results', 'aria-busy': loading },
+      summary.requests ? React.createElement(React.Fragment, null,
+        React.createElement(KpiRow, { summary, cost: data.cost, analytics, t }),
+        React.createElement(TokenComposition, { summary, t }),
+        React.createElement('div', { className: 'cb-insight-grid' },
+          React.createElement(CostPanel, { cost: data.cost, syncing: busy === 'sync', onSync: () => action('sync'), t }),
+          React.createElement(LatencyPanel, { summary, analytics, t })),
+        React.createElement(ActivityHeatmap, { analytics, t }),
+        React.createElement(StatsBreakdown, { data, t })) : React.createElement('p', { className: 'cb-empty' }, t('stats.empty')),
+      React.createElement(RoutingHistory, { records: data.recent, t })) : !error ? React.createElement('div', { className: 'cb-section-desc' }, t('durable.loading')) : null,
+    React.createElement('div', { className: 'cb-card-foot' },
+      React.createElement('p', { className: 'cb-footnote' }, t('stats.footer', { days: analytics?.retentionDays || t('analytics.forever'), since: analytics?.detailSince ? formatShortTime(analytics.detailSince) : '—' })),
+      React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm cb-btn-ghost cb-btn-danger-text', title: t('durable.reset_hint'), 'aria-expanded': confirmReset, disabled: !!busy, onClick: () => setConfirmReset(true) }, t('durable.reset'))),
     confirmReset ? React.createElement('div', { className: 'cb-confirm', role: 'alertdialog', 'aria-label': t('durable.reset') },
       React.createElement('div', null, t('durable.reset_hint')),
       React.createElement('div', { className: 'cb-row' },
         React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-danger', disabled: !!busy, onClick: () => action('reset') }, t('durable.reset_confirm')),
-        React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: () => setConfirmReset(false) }, t('durable.cancel')))) : null,
-    error || data?.error ? React.createElement('div', { className: 'cb-alert-bad' }, error || data.error) : null,
-    applied.since || applied.until ? React.createElement('p', { className: 'cb-footnote' }, `${applied.since ? new Date(applied.since).toLocaleString() : '…'} → ${applied.until ? new Date(applied.until).toLocaleString() : '…'}`) : null,
-    summary ? React.createElement(React.Fragment, null,
-      React.createElement(AnalyticsView, { data, t }),
-      React.createElement('div', { className: 'cb-kpis' }, kpis.map((kpi) => React.createElement('div', { className: 'cb-kpi', key: kpi.label },
-        React.createElement('span', null, kpi.label), React.createElement('b', { title: kpi.valueTitle }, kpi.value), React.createElement('small', { title: kpi.noteTitle }, kpi.note)))),
-      React.createElement('div', { className: 'cb-block' },
-        table([[t('durable.col_metric')], [t('durable.col_value'), true], [t('durable.col_coverage'), true]],
-          fields.map((field) => React.createElement('tr', { key: field }, React.createElement('th', { scope: 'row' }, t(`durable.${field}`)),
-            React.createElement('td', { className: 'cb-num' }, measured(summary, field, field.endsWith('Ms'))), React.createElement('td', { className: 'cb-num' }, coverage(summary, field))))),
-        React.createElement('div', { className: 'cb-footnote' }, t('durable.samples'))),
-      React.createElement('div', { className: 'cb-block' },
-        React.createElement('div', { className: 'cb-subtitle' }, t('durable.attempt_title')),
-        table(null, data.attemptAccounts.map((row) => React.createElement('tr', { key: row.value },
-          React.createElement('th', { scope: 'row' }, React.createElement('code', null, row.value)), React.createElement('td', { className: 'cb-end' }, t('durable.attempt_counts', { attempts: row.totals.requests, failed: row.totals.failure, limited: row.totals.rateLimits }))))),
-        React.createElement('div', { className: 'cb-footnote' }, t('durable.attempt_accounts'))),
-      React.createElement('div', { className: 'cb-block' },
-        React.createElement('div', { className: 'cb-subhead' }, React.createElement('span', { className: 'cb-subtitle' }, t('durable.group')),
-          React.createElement('div', { className: 'cb-tabs cb-tabs-sm', role: 'group', 'aria-label': t('durable.group') }, ['day', 'model', 'account'].map((value) =>
-            React.createElement('button', { type: 'button', className: 'cb-tab', key: value, 'aria-pressed': group === value, onClick: () => setGroup(value) }, t(`durable.${value}`))))),
-        table([[t(`durable.${group}`)], [t('durable.request_count'), true], [t('durable.totalTokens'), true], [t('durable.col_coverage'), true]],
-          data.grouped[group].map((row) => React.createElement('tr', { key: row.value },
-            React.createElement('td', { className: 'cb-nowrap' }, group === 'day' ? row.value : React.createElement('code', null, row.value)), React.createElement('td', { className: 'cb-num' }, row.totals.requests.toLocaleString()),
-            React.createElement('td', { className: 'cb-num' }, measured(row.totals, 'totalTokens')), React.createElement('td', { className: 'cb-num' }, coverage(row.totals, 'totalTokens')))))),
-      React.createElement(RoutingHistory, { records: data.recent, t })
-    ) : React.createElement('div', { className: 'cb-section-desc' }, t('durable.loading')))
+        React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: () => setConfirmReset(false) }, t('durable.cancel')))) : null)
 }

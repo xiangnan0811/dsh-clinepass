@@ -7,7 +7,7 @@ import { Readable } from 'node:stream'
 import { createStatsStore } from '../lib/stats-store.js'
 import { createSessionRouter } from '../lib/session-router.js'
 import { createPriceCatalog, parsePriceCatalog } from '../lib/price-catalog.js'
-import { effectiveRate, estimateRows, budgetStatus } from '../lib/pricing.js'
+import { effectiveRate, estimateRows, budgetStatus, matchReference } from '../lib/pricing.js'
 import { createProxyServer } from '../lib/proxy-server.js'
 import { registerAccountsRoutes } from '../lib/routes/accounts.js'
 import { registerSettingsRoutes } from '../lib/routes/settings.js'
@@ -105,20 +105,61 @@ test('public prices retain provider identity and null rates; failed refresh reta
   await prices.close()
 })
 
-test('estimates and budgets never price missing measurements or missing rates as zero', async t => {
+test('budgets compare reference estimates with the limit and never block on missing prices or usage', async t => {
   const store = createStatsStore(join(await fixture(t), 'stats.json'))
   await store.record(record({}))
-  const rows = (await store.query()).rows
   const config = { costCurrency: 'USD', costRates: [{ model: 'model', inputPerMillion: 2, outputPerMillion: 10, cacheReadPerMillion: 0.2, cacheWritePerMillion: 3 }] }
-  assert.equal(estimateRows(rows, config).measuredRequests, 1)
-  assert.ok(Math.abs(estimateRows(rows, config).amount - 0.000226) < 1e-12)
-  assert.equal(estimateRows(rows, { ...config, costRates: [{ model: 'model', inputPerMillion: 2 }] }).amount, null)
+  assert.ok(Math.abs(estimateRows((await store.query()).rows, config).amount - 0.000226) < 1e-12)
   await store.record(record({ usage: null }))
-  const unknown = estimateRows((await store.query()).rows, config)
-  assert.equal(unknown.amount, null)
-  assert.equal(budgetStatus({ dailyBudget: 1 }, unknown, unknown).code, 'BUDGET_UNVERIFIED')
+  const rows = (await store.query()).rows
+  assert.ok(Math.abs(estimateRows(rows, config).amount - 0.000226) < 1e-12)
+  const unpriced = estimateRows(rows, { costCurrency: 'USD' })
+  assert.equal(unpriced.amount, null)
+  assert.equal(budgetStatus({ dailyBudget: 1 }, unpriced, unpriced).blocked, false)
+  assert.equal(budgetStatus({ dailyBudget: 1 }, null, null).blocked, false)
   assert.equal(budgetStatus({ monthlyBudget: 1 }, { amount: 0 }, { amount: 1 }).code, 'BUDGET_EXCEEDED')
-  assert.equal(budgetStatus({}, unknown, unknown).blocked, false)
+  assert.equal(budgetStatus({}, { amount: 9 }, { amount: 9 }).blocked, false)
+})
+
+test('automatic reference prices prefer ClinePass, then the official vendor, and strip dated pins', () => {
+  const row = (provider, id, canonical, input, output, read = null) => ({ provider, id, canonical, inputPerMillion: input, outputPerMillion: output, cacheReadPerMillion: read, cacheWritePerMillion: null })
+  const catalog = { syncedAt: 1, models: [
+    row('arcee', 'deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4.1-flash', 0.22, 0.66, 0.007),
+    row('cline-pass', 'cline-pass/deepseek-v4.1-flash', 'deepseek/deepseek-v4.1-flash', 0.15, 0.6, 0.003),
+    row('deepseek', 'deepseek-flash', 'deepseek/deepseek-v4.1-flash-1017', 0.15, 0.6, 0.003),
+    row('arcee', 'deepseek/deepseek-v4.1-flash-1017', 'deepseek/deepseek-v4.1-flash-1017', 0.3, 1.2),
+    row('moonshotai', 'kimi-k3.1-pro-highspeed', 'moonshotai/kimi-k3.1-pro', 4, 20, 0.2),
+    row('moonshotai', 'kimi-k3.1-pro', 'moonshotai/kimi-k3.1-pro', 2, 10, 0.2),
+    row('kimi-code-plan', 'kimi-k3.1-pro', 'moonshotai/kimi-k3.1-pro', 0, 0),
+    row('cline-pass', 'cline-pass/glm-5.3', 'zhipuai/glm-5.3', 1.4, 4.4, 0.26),
+  ] }
+  assert.equal(matchReference('cline-pass/deepseek-v4.1-flash', catalog).provider, 'cline-pass')
+  assert.equal(matchReference('deepseek/deepseek-v4.1-flash', catalog).provider, 'cline-pass')
+  const dated = matchReference('cline-pass/deepseek-v4.1-flash-1017', catalog)
+  assert.equal(dated.provider, 'deepseek'); assert.equal(dated.source, 'auto'); assert.equal(dated.model, 'cline-pass/deepseek-v4.1-flash-1017')
+  assert.equal(matchReference('cline-pass/kimi-k3.1-pro', catalog).id, 'kimi-k3.1-pro')
+  assert.equal(matchReference('cline-pass/glm-5.3-0901', catalog).id, 'cline-pass/glm-5.3')
+  assert.equal(matchReference('cline-pass/unknown', catalog), null)
+})
+
+test('reference estimates price what they can and use the input price for missing cache rates', async t => {
+  const store = createStatsStore(join(await fixture(t), 'stats.json'))
+  await store.record(record({ model: 'cline-pass/glm-5.3', usage: { ...usage, cacheWriteTokens: 4, totalTokens: 64 } }))
+  await store.record(record({ model: 'cline-pass/unknown' }))
+  await store.record(record({ model: 'cline-pass/glm-5.3', usage: null }))
+  const rows = (await store.query()).rows
+  const catalog = { syncedAt: 5, models: [{ provider: 'cline-pass', id: 'cline-pass/glm-5.3', canonical: 'zhipuai/glm-5.3', inputPerMillion: 2, outputPerMillion: 10, cacheReadPerMillion: 0.5, cacheWritePerMillion: null }] }
+  const estimate = estimateRows(rows, { costCurrency: 'USD' }, catalog)
+  assert.equal(estimate.syncedAt, 5)
+  assert.ok(Math.abs(estimate.amount - (10 * 2 + 20 * 10 + 30 * 0.5 + 4 * 2) / 1e6) < 1e-12)
+  assert.ok(Math.abs(estimate.cacheSavings - 30 * 1.5 / 1e6) < 1e-12)
+  const glm = estimate.models.find(entry => entry.model === 'cline-pass/glm-5.3')
+  assert.equal(glm.rate.source, 'auto'); assert.equal(glm.rate.cacheWritePerMillion, null); assert.equal(glm.requests, 2)
+  assert.equal(estimate.models.find(entry => entry.model === 'cline-pass/unknown').rate, null)
+  // Manual rates win; other currencies never fall back to USD references.
+  const manual = estimateRows(rows, { costCurrency: 'USD', costRates: [{ model: 'cline-pass/glm-5.3', inputPerMillion: 1, outputPerMillion: 1, cacheReadPerMillion: 1, cacheWritePerMillion: 1 }] }, catalog)
+  assert.equal(manual.models.find(entry => entry.model === 'cline-pass/glm-5.3').rate.source, 'manual')
+  assert.equal(estimateRows(rows, { costCurrency: 'CNY' }, catalog).amount, null)
 })
 
 test('budget rejection precedes proxy network activity and is not recorded as billable unknown usage', async t => {
@@ -153,7 +194,7 @@ test('quota pace uses actual comparable samples and clears after account changes
 })
 
 test('all rendered locales have matching keys and placeholder names', async () => {
-  const source = await readFile(new URL('../src/client/locales.js', import.meta.url), 'utf8') + '\n' + await readFile(new URL('../src/client/locales-adoption.js', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/client/locales.js', import.meta.url), 'utf8') + '\n' + await readFile(new URL('../src/client/locales-adoption.js', import.meta.url), 'utf8') + '\n' + await readFile(new URL('../src/client/locales-overview.js', import.meta.url), 'utf8')
   const { en, zh } = vm.runInNewContext(source + '\n;({en,zh})')
   assert.deepEqual(Object.keys(en).sort(), Object.keys(zh).sort())
   for (const key of Object.keys(en)) assert.deepEqual([...en[key].matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort(), [...zh[key].matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort(), key)

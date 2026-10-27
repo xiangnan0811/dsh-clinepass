@@ -72,13 +72,16 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   missing times and usage unknown. Sidebar and composer displays default on and
   have separate switches.
 - Composer usage comes from the current session's ClinePass reply/attempt
-  projection, excluding other providers. Cost estimates require explicit per-model
-  uncached input, output, cache-read and cache-write rates per million tokens. USD is the default unit; changing currency
-  performs no conversion. Missing rates or incomplete usage prevent calculation.
-  The four categories are priced separately; reasoning is already within output.
-  Cache writes create prompt cache. Old two-rate settings need explicit cache
-  prices. Missing counters remain unknown, including in native session replay.
-  Estimates use current saved rates and are not historical bills.
+  projection, excluding other providers. Cost estimates price uncached input,
+  output, cache-read and cache-write tokens per million, using a manual rate, a
+  bound reference or an automatically matched `models.dev` USD reference, in that
+  order. USD is the default unit; changing currency performs no conversion, and
+  other currencies need manual rates. A missing cache price uses the input price;
+  unreported counters count as zero and models without a price are left out.
+  The ClinePass subscription does not bill per request, so this is only a rough
+  reference. Reasoning is already within output. Missing counters remain
+  unknown in the token totals, including in native session replay. Estimates are
+  references at current rates, not historical bills.
 - Streaming probes allow cancellation, request at most 1024 output tokens and
   expire after 30 seconds. They measure first text/reasoning/tool output and total
   duration, and count in profile statistics rather than session reply usage.
@@ -266,8 +269,9 @@ The wire protocol follows the public findings in
 and [dsh-cline-pass](https://github.com/yhshzh/dsh-cline-pass/tree/008fa828c8c2c862d909e940372b72285e3c8ba4).
 
 Ordinary chat shows the last response's reported upstream in the composer.
-Expand it for this session's retained requests; profile statistics show the last
-100 requests, including failures, automatic routing and individual account attempts.
+Expand it for this session's retained requests; profile statistics show the latest
+10 requests (expandable to 50) of the 100 retained, including failures, automatic
+routing and individual account attempts.
 Each record persists the requested provider, whether a restriction was attached,
 the reported provider and its observation: matched this time, mismatch, unverified,
 not attached, automatic, or unrecorded. Attaching a restriction does not prove
@@ -303,25 +307,32 @@ Storage errors remain visible while model calls continue; unsaved measurements
 remain in memory. Reset clears the entire profile's statistics, including filtered
 dates, and archives a corrupt file before replacing it. Accounts and models remain.
 
-Usage patterns add P50/P95 histogram bounds, a weekday/hour heatmap using the
-browser's current UTC offset, minute ranges (end exclusive), failure filters and
-JSON export. Old daily aggregates remain intact; they acquire neither invented
+The statistics card has one filter bar: a range (all, 24 hours, 7/30/90 days or a
+custom local minute range, end exclusive), model, account and a failures-only
+toggle, all applied immediately. Results show request, success, token, reference
+cost and first-output KPIs; token composition with the cache hit rate (cache read
+÷ all input); P50/P95 histogram bounds and mean latency; a weekday/hour heatmap
+using the browser's current UTC offset; and a date/model/account breakdown with
+token shares. Fields reported by fewer than 95% of requests are marked. CSV and
+JSON export use the active filters. Old daily aggregates remain intact; they acquire neither invented
 minute detail nor percentile samples. Minute/failure filters include retained
 detail only. Account history keeps the last 200 routing, cooldown, recovery and
 selection events independently of statistics reset. Additional accounts can be
 renamed or have their saved key cleared while retaining their entry and pins;
 environment keys must be removed at their source.
 
-Under **Usage & rates**, public USD prices from `models.dev` can be synchronized
-manually and bound to an explicit provider/model. The profile-local cache is
-`clinepass/prices.json`; failed refreshes retain the last successful catalog and
-show an error. The timestamp stays visible. No binding is selected automatically,
-missing cache prices remain unknown, and other currencies use manual rates.
-Manual rows override public references, including incomplete manual rows.
+Under **Usage & rates** or from the cost panel, public USD prices from `models.dev`
+can be synchronized. The profile-local cache is `clinepass/prices.json`; failed
+refreshes retain the last successful catalog and show an error. The timestamp stays
+visible. Statistics and session estimates match a reference automatically by model
+name (ClinePass's own listing first, then the official vendor, then other providers;
+a trailing `-MMDD` date is tried without it). A binding to an explicit
+provider/model overrides that match, and manual rows override both, including
+incomplete manual rows. Other currencies use manual rates only.
 
-Daily/monthly budgets check recorded profile usage at current rates before a new
-native, proxy, smoke or probe call. Missing measurements, rates or usable storage
-block calls only when a limit is enabled. In-flight calls can exceed a limit;
+Daily/monthly budgets compare the same reference estimate with the limit before a
+new native, proxy, smoke or probe call and block only once it is reached; missing
+prices, usage or statistics count as zero. In-flight calls can exceed a limit;
 these estimates are not bills or subscription quotas. Resetting statistics also
 resets budget usage. Changing currency reinterprets manual rates and limits
 without conversion. `/cline cost` and `/cline budget` show the same estimates.

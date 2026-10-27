@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.8.1 — 2026-10-27
+
+Rework the details window for scanning instead of configuration-style forms.
+
+- Statistics use one filter bar (range presets or a custom local range, model,
+  account, failures-only) that applies immediately; the duplicate UTC date filter
+  and apply button are gone. Results show KPIs, token composition with cache hit
+  rate, latency percentiles, an activity heatmap and a date/model/account
+  breakdown with token shares. Export and reset move out of the filter area.
+- Reference cost: the ClinePass subscription does not bill per request, so cost is
+  a rough reference everywhere. Statistics, session estimates and budgets use
+  manual rates, bindings or automatically matched `models.dev` USD prices;
+  missing cache prices use the input price, unreported tokens count as zero and
+  unpriced models are left out. Budgets block only once the estimate reaches the
+  limit; `BUDGET_UNVERIFIED` is gone.
+- Quota card: account email and plan load in parallel with limits and fall back
+  to the last successful values, so they show without a manual refresh.
+- Recent requests show 10 entries by default, expandable to 50.
+- Configuration tab: sticky section navigation inside the details window and an
+  inline retention field.
+- The client build minifies local identifiers and aliases `React.createElement(`
+  as `h(` (253 KB → 229 KB, limit 256 KiB). Top-level names stay readable and
+  `src/client/` ships unminified; a bundle test rejects locals shadowing `h`.
+
 ## 0.8.0 — 2026-10-27
 
 Selectively adopt upstream through `fd72f12` (0.6.16), retaining this fork's native

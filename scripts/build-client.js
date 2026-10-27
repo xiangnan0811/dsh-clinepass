@@ -13,6 +13,7 @@ const files = [
   'request.js',
   'locales.js',
   'locales-adoption.js',
+  'locales-overview.js',
   'chevron.js',
   'styles.js',
   'error-boundary.js',
@@ -30,6 +31,9 @@ const files = [
   'components/models-section.js',
   'components/native-model-editor.js',
   'components/upstream-observation.js',
+  'components/stats-insights.js',
+  'components/stats-filters.js',
+  'components/stats-breakdown.js',
   'components/stats-section.js',
   'components/analytics.js',
   'components/economy-settings.js',
@@ -44,8 +48,11 @@ const files = [
 ]
 
 const parts = files.map((rel) => {
-  const code = readFileSync(path.join(srcDir, rel), 'utf8')
-  const { code: compact } = transformSync(code, { sourcefile: rel, loader: 'js', target: 'es2022', minifyWhitespace: true, minifyIdentifiers: false, minifySyntax: false, legalComments: 'none' })
+  // 先替换再压缩：h 作为未绑定的全局引用，esbuild 不会把局部变量重命名为 h 而遮蔽它。
+  const code = readFileSync(path.join(srcDir, rel), 'utf8').replaceAll('React.createElement(', 'h(')
+  const { code: compact } = transformSync(code, { sourcefile: rel, loader: 'js', target: 'es2022', minifyWhitespace: true, minifyIdentifiers: true, minifySyntax: false, legalComments: 'none' })
+  // 商店限制 256 KiB：只压缩局部标识符（各文件顶层声明保持原样，供跨文件引用），
+  // 并把 React.createElement( 统一写作 h(。可读源码随包发布在 src/client/。
   return `// --- src/client/${rel} ---\n` + compact.trim()
 })
 
@@ -58,6 +65,7 @@ window.__ModuleLoader__.load({
     var module = { exports: {} }
     var exports = module.exports
     let React = require('react')
+    const h = React.createElement
 
 ${parts.join('\n\n')}
 

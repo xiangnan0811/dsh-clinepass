@@ -22,6 +22,8 @@ test('built client injects configForms and registers the row settings page', () 
   assert.match(source, /const ROW_KEY\s*=\s*`\$\{PACKAGE_NAME\}#\$\{NS\}`/)
   assert.match(source, /const PACKAGE_NAME\s*=\s*['"]dsh-clinepass['"]/)
   assert.match(source, /const NS\s*=\s*['"]dsh-clinebot['"]/)
+  // The build aliases React.createElement as h; minified locals must never shadow it.
+  assert.deepEqual(source.match(/\b(?:let|const|var|function)\s+h\b|[(,{]h(?=[,)=}:])|\bh=>/g), ['const h'])
   let loaded
   const sandbox = {
     window: {

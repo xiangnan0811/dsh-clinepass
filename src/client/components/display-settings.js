@@ -22,12 +22,14 @@ function DisplaySettings({ status, draft, busy, saveSettings, t }) {
     React.createElement('div', { className: 'cb-section-title' }, t('surface.preferences')),
     ['showSidebarQuota', 'showComposerUsage'].map((key) => React.createElement('label', { className: 'cb-check', key }, React.createElement('input', { type: 'checkbox', checked: draft[key] !== false, disabled: !!busy, onChange: (event) => saveSettings({ [key]: event.target.checked }) }), t(`surface.${key}`))),
     React.createElement('label', { className: 'cb-check' }, React.createElement('input', { type: 'checkbox', checked: draft.quotaForecastEnabled === true, disabled: !!busy, onChange: event => saveSettings({ quotaForecastEnabled: event.target.checked }) }), t('forecast.enable')),
-    React.createElement('label', { className: 'cb-field' }, t('analytics.retention'), React.createElement('input', { type: 'number', min: 0, max: 3650, step: 1, className: 'cb-input', value: retention, disabled: !!busy, onChange: event => setRetention(event.target.value) })),
-    React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: async () => {
-      const value = Number(retention)
-      if (!retention.trim() || !Number.isInteger(value) || value < 0 || value > 3650) { setRetentionNotice({ ok: false, message: t('analytics.invalid_retention') }); return }
-      setRetentionNotice(await saveSettings({ statsRetentionDays: value }))
-    } }, t('analytics.save_retention')),
+    React.createElement('div', { className: 'cb-field' }, React.createElement('label', { htmlFor: 'cb-retention-days' }, t('analytics.retention')),
+      React.createElement('div', { className: 'cb-row' },
+        React.createElement('input', { id: 'cb-retention-days', type: 'number', min: 0, max: 3650, step: 1, className: 'cb-input cb-input-narrow', value: retention, disabled: !!busy, onChange: event => setRetention(event.target.value) }),
+        React.createElement('button', { type: 'button', className: 'cb-btn', disabled: !!busy, onClick: async () => {
+          const value = Number(retention)
+          if (!retention.trim() || !Number.isInteger(value) || value < 0 || value > 3650) { setRetentionNotice({ ok: false, message: t('analytics.invalid_retention') }); return }
+          setRetentionNotice(await saveSettings({ statsRetentionDays: value }))
+        } }, t('analytics.save_retention')))),
     retentionNotice ? React.createElement('p', { role: 'status', className: retentionNotice.ok ? 'cb-alert-ok' : 'cb-alert-bad' }, retentionNotice.message) : null,
     React.createElement('details', null, React.createElement('summary', null, t('surface.rates_title')),
       React.createElement('p', { className: 'cb-section-desc' }, t('surface.cost_hint', { currency: draft.costCurrency || 'USD' })),

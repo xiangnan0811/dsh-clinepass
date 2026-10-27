@@ -64,14 +64,19 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
             { className: 'cb-section-title' },
             t('quota.title'),
             React.createElement(
-              'button',
-              {
-                type: 'button',
-                className: 'cb-btn cb-btn-sm',
-                disabled: !!busy,
-                onClick: handleRefreshQuota,
-              },
-              busy === 'refresh-quota' ? t('quota.refreshing') : t('quota.refresh')
+              'span',
+              { className: 'cb-row' },
+              React.createElement('span', { className: 'cb-footnote' }, t('quota.updated', { time: checkedAt || '—' })),
+              React.createElement(
+                'button',
+                {
+                  type: 'button',
+                  className: 'cb-btn cb-btn-sm cb-btn-ghost',
+                  disabled: !!busy,
+                  onClick: handleRefreshQuota,
+                },
+                busy === 'refresh-quota' ? t('quota.refreshing') : t('quota.refresh')
+              )
             )
           ),
           React.createElement(
@@ -86,11 +91,9 @@ function QuotaSection({ keyPresent, status, usage, accountUsage, busy, handleRef
                   onClick: () => setShowEmail((current) => !current),
                 }, showEmail ? t('quota.email_hide') : t('quota.email_show'))
               : null,
-            usage?.plan ? React.createElement('span', { className: 'cb-dot-sep', 'aria-hidden': true }) : null,
-            usage?.plan ? React.createElement('span', null, React.createElement('span', { className: 'cb-sr-only' }, `${t('quota.col_plan')}: `), usage.plan) : null,
+            usage?.plan ? React.createElement('span', { className: 'cb-badge cb-badge-accent' }, React.createElement('span', { className: 'cb-sr-only' }, `${t('quota.col_plan')}: `), usage.plan) : null,
             usage?.canceledAt ? React.createElement('span', { className: 'cb-badge cb-badge-warn' }, `${t('quota.canceled')} ${formatResetTime(usage.canceledAt) || usage.canceledAt}`) : null,
             usage?.cancelAtPeriodEnd ? React.createElement('span', { className: 'cb-badge cb-badge-warn' }, t('quota.cancel_period_yes')) : null,
-            React.createElement('span', { className: 'cb-footnote cb-push' }, t('quota.updated', { time: checkedAt || '—' })),
           ),
           React.createElement('div', { className: 'cb-quota-windows' },
             React.createElement(ProgressBar, {

@@ -63,24 +63,32 @@ test('replay validates partial native counters before deriving prompt totals', (
   ]) assert.ok(Object.values(replay(invalid)).every(value => value.samples === 0))
 })
 
-test('cost estimates require explicit rates and complete per-model measurements, without adding reasoning again', () => {
+test('cost estimates use the available rate, fall back to the input price for missing cache prices and never add reasoning again', () => {
   const state = projection.apply(projection.apply(projection.init(), header()), message('clinebot', model)).view
   const rates = { costRates: [{ model, inputPerMillion: 2, outputPerMillion: 10, cacheReadPerMillion: 0.2, cacheWritePerMillion: 2.5 }] }
   assert.equal(sessionEstimate(state, {}).amount, null)
+  assert.equal(sessionEstimate(state, {}).reason, 'missing_rate')
   const estimate = sessionEstimate(state, rates)
   assert.equal(estimate.tokens, 48)
   assert.equal(estimate.amount, (30 * 2 + 10 * 0.2 + 8 * 10) / 1000000)
+  assert.equal(estimate.reason, '')
   const zero = sessionEstimate(state, { costRates: [{ model, inputPerMillion: 0, outputPerMillion: 0, cacheReadPerMillion: 0, cacheWritePerMillion: 0 }] })
   assert.equal(zero.amount, 0)
-  const partial = projection.apply({ view: state, last: null }, message('clinebot', model, null, 1)).view
-  assert.equal(sessionEstimate(partial, rates).amount, null)
-  assert.equal(sessionEstimate(partial, rates).tokens, null)
-  assert.equal(sessionEstimate(state, { costRates: [{ model, inputPerMillion: 2, outputPerMillion: 10 }] }).reason, 'missing_rate')
+  // Missing cache prices are charged at the input price, as with public reference rows.
+  assert.equal(sessionEstimate(state, { costRates: [{ model, inputPerMillion: 2, outputPerMillion: 10 }] }).amount, (30 * 2 + 10 * 2 + 8 * 10) / 1000000)
   const written = projection.apply(projection.apply(projection.init(), header()), message('clinebot', model, { ...usage, inputTokens: 25, cacheWriteTokens: 5 })).view
   assert.ok(Math.abs(sessionEstimate(written, rates).amount - (25 * 2 + 10 * 0.2 + 5 * 2.5 + 8 * 10) / 1000000) < 1e-12)
-  const unknownCache = projection.apply(projection.apply(projection.init(), header()), message('clinebot', model, { ...usage, cacheWriteTokens: null })).view
-  assert.equal(sessionEstimate(unknownCache, rates).amount, null)
-  assert.equal(sessionEstimate(unknownCache, rates).reason, 'missing_usage')
+  // Unreported usage counts as zero; total tokens stay unknown when incomplete.
+  const partial = projection.apply({ view: state, last: null }, message('clinebot', model, null, 1)).view
+  assert.equal(sessionEstimate(partial, rates).amount, (30 * 2 + 10 * 0.2 + 8 * 10) / 1000000)
+  assert.equal(sessionEstimate(partial, rates).reason, '')
+  assert.equal(sessionEstimate(partial, rates).tokens, null)
+  // A model without any rate is excluded and reported, while priced models still count.
+  const mixed = [header(), message('clinebot', model), header('clinebot', 'other-model'), message('clinebot', 'other-model', usage, 1)]
+    .reduce((current, event) => projection.apply(current, event), projection.init()).view
+  assert.equal(mixed.models['other-model'].calls, 1)
+  assert.equal(sessionEstimate(mixed, rates).reason, 'cost_partial')
+  assert.equal(sessionEstimate(mixed, rates).amount, estimate.amount)
 })
 
 test('composer routing records isolate sessions and ignore cancelled late responses', async () => {
@@ -124,21 +132,21 @@ test('routing details show returned identifiers separately without changing the 
   assert.doesNotMatch(JSON.stringify(component({ record: {}, t })), /routing.evidence_hint/)
 })
 
-test('routing history pages long record lists instead of nesting a scroll area', () => {
+test('routing history shows ten records, pages by ten and stops at fifty', () => {
   let limit
   const React = { Fragment: 'fragment', useState(initial) { limit ??= initial; return [limit, (value) => { limit = value }] }, createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat() }) }
   const { RoutingHistory, RoutingRecord } = vm.runInNewContext(readFileSync(new URL('../src/client/components/upstream-observation.js', import.meta.url), 'utf8') + '\n({RoutingHistory,RoutingRecord})', { React })
   const t = (key, values) => values ? `${key}:${JSON.stringify(values)}` : key
-  const records = Array.from({ length: 46 }, (_, index) => ({ id: `r${index}`, model: 'm', account: 'a', ok: index !== 1, completedAt: 0, upstreamPinStatus: 'mismatch', attempts: [{ code: index === 1 ? 'RATE_LIMIT' : '' }] }))
+  const records = Array.from({ length: 64 }, (_, index) => ({ id: `r${index}`, model: 'm', account: 'a', ok: index !== 1, completedAt: 0, upstreamPinStatus: 'mismatch', attempts: [{ code: index === 1 ? 'RATE_LIMIT' : '' }] }))
   const rows = (tree) => tree.children.find((child) => child?.props?.className === 'cb-routing-list').children
+  const more = (tree) => tree.children.at(-2)
   let tree = RoutingHistory({ records, t })
-  assert.equal(rows(tree).length, 20)
-  const more = tree.children.at(-1).children[0]
-  assert.match(more.children[0], /"count":26/)
-  more.props.onClick()
-  tree = RoutingHistory({ records, t })
-  assert.equal(rows(tree).length, 40)
-  assert.equal(RoutingHistory({ records: records.slice(0, 3), t }).children.at(-1), null)
+  assert.equal(rows(tree).length, 10)
+  assert.match(more(tree).children[0].children[0], /"count":40/)
+  for (let page = 0; page < 4; page++) { more(tree).children[0].props.onClick(); tree = RoutingHistory({ records, t }) }
+  assert.equal(rows(tree).length, 50)
+  assert.equal(more(tree), null)
+  assert.equal(more(RoutingHistory({ records: records.slice(0, 3), t })), null)
   // Failure state and pin result stay visible in the collapsed row; the failure code is in the expanded body.
   const [summary, body] = RoutingRecord({ row: records[1], t }).children
   assert.equal(summary.type, 'summary')

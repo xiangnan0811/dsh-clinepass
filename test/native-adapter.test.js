@@ -353,10 +353,13 @@ test('native cache aliases reach session estimates; contradictory wire samples d
     if (scenario.invalid) {
       assert.equal(usage, undefined)
       assert.equal(result.tokens, null)
-      assert.equal(result.amount, null)
+      // Contradictory samples contribute no tokens, so the reference estimate adds nothing.
+      assert.equal(result.amount, 0)
     } else if (scenario.partial) {
       assert.equal(result.tokens, 23)
-      assert.equal(result.amount, null)
+      // Unreported cache fields count as zero rather than hiding the whole estimate.
+      assert.equal(result.reason, '')
+      assert.ok(Math.abs(result.amount - ((scenario.input ?? 20) * 2 + 3 * 10 + (scenario.write ?? 0) * 2.5) / 1000000) < 1e-12)
       assert.equal(usage.cacheReadTokens, undefined)
       assert.equal(usage.cacheWriteTokens, scenario.write)
       assert.equal(usage.inputTokens, scenario.input ?? 20)

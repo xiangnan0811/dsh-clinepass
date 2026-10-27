@@ -21,7 +21,7 @@ function EconomySettings({ draft, busy, saveSettings, model, t }) {
   }
   const save = async patch => { const result = await saveSettings(patch); if (!result.ok) throw new Error(result.message) }
   const disabled = !!busy || working
-  const amount = value => value?.amount == null ? t('surface.cost_unknown') : `${draft.costCurrency || 'USD'} ${value.amount.toFixed(6)}`
+  const amount = value => value?.amount == null ? t('surface.cost_unknown') : `≈ ${formatMoney(value.amount, draft.costCurrency || 'USD')}`
   return React.createElement('div', { className: 'cb-block' },
     React.createElement('div', { className: 'cb-subtitle' }, t('prices.title')),
     React.createElement('p', { className: 'cb-section-desc' }, t('prices.hint')),
