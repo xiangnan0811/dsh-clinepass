@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.2 — 2026-10-30
+
+Selectively adapt upstream `fb348e5` (0.6.21): HTTP 402 now reports insufficient
+model credits, with five-minute account/model cooldowns in the proxy and no global
+account rotation in direct calls or diagnostics. HTTP 413 and structured size
+errors return actionable, redacted failures without retries; context overflow
+remains separate. Native public transport metadata preserves these classes across
+SDK error wrapping. Recovery, account history and statistics expose the new scope
+and error classes without rewriting historical totals.
+
+Share manual and automatic catalog writes, retry startup discovery at 3/15 seconds,
+and check hourly for results older than six hours. Cancel stale identity/lifecycle
+reads, preserve choices and native edits, and isolate v4 caches by credential
+fingerprint. Use the configured gateway's explicit `free` list for exact-ID FREE
+badges, filtering and sorting. Dated catalog IDs remain distinct from verified
+plan membership; do not synthesize Pass IDs, copy stable-alias capabilities or
+automatically import catalog models. Existing model choices, request budgets,
+upstream pins and 0.8.1 reference-cost rules are preserved.
+
 ## 0.8.1 — 2026-10-27
 
 Rework the details window for scanning instead of configuration-style forms.

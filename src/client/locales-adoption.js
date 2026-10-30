@@ -1,4 +1,12 @@
 Object.assign(en, {
+  'models.free': 'FREE',
+  'models.refresh_failed': 'Catalog synchronization failed or returned incomplete data. Previous valid data is retained; retry synchronization.',
+  'models.cache_warning': 'Model cache could not be saved. Settings and model calls remain available; check the cache path and synchronize again.',
+  'models.free_hint': 'Explicit free listing from the configured gateway. Account access and actual calls require separate verification.',
+  'proxy.all_models': 'All models',
+  'history.reason_INSUFFICIENT_CREDITS': 'Insufficient model credits',
+  'history.reason_REQUEST_TOO_LARGE': 'Request too large',
+  'stats.error_classes': 'Attempts · insufficient credits {credits} · request too large {large}',
   "analytics.save_retention": "Save retention",
   "analytics.invalid_retention": "Enter a whole number of days from 0 to 3650.",
   "analytics.detailed_only": "Time-range and failure filters include retained minute samples only; older daily totals are excluded.",
@@ -13,6 +21,14 @@ Object.assign(en, {
   "models.group_custom": "User models"
 })
 Object.assign(zh, {
+  'models.free': '免费',
+  'models.refresh_failed': '目录同步失败或来源不完整，已保留上次有效数据；可重新同步。',
+  'models.cache_warning': '模型缓存未能保存。配置与模型调用仍可使用；请检查缓存路径后重新同步。',
+  'models.free_hint': '来自当前网关明确的免费目录。账户权限与实际调用需分别验证。',
+  'proxy.all_models': '全部模型',
+  'history.reason_INSUFFICIENT_CREDITS': '该模型余额不足',
+  'history.reason_REQUEST_TOO_LARGE': '请求过大',
+  'stats.error_classes': '实际尝试 · 余额不足 {credits} · 请求过大 {large}',
   "analytics.save_retention": "保存保留天数",
   "analytics.invalid_retention": "请输入 0 到 3650 之间的整数天数。",
   "analytics.detailed_only": "时间范围和失败过滤仅包含保留的分钟明细，不包含更早的每日汇总。",

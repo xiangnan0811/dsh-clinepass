@@ -90,8 +90,9 @@ then calls `baseUrl`, which should be `https://api.cline.bot/api/v1`.
   pins one, and `/cline use auto` restores automatic routing.
 - Saves extra `CLINEBOT_API_KEY_*` accounts on the same card. The pool name is
   saved before the secret. If the secret is not stored, that new name is
-  removed. A later DSH turn that gets HTTP 429 or 402 switches to the next
-  saved account. Switching, that rotation, a new API address, a new primary
+  removed. A direct DSH turn with HTTP 429 or confirmed account quota exhaustion
+  selects another account for later requests. HTTP 402 reports insufficient credits
+  for this model and leaves the global account unchanged. Switching, that rotation, a new API address, a new primary
   credential name, or replacing the active key drops the previous plan model
   list until the next successful plan read. Replacing the active key also
   removes the saved plan cache, so the old list is not restored from disk.
@@ -149,6 +150,29 @@ upstream TUI settings integration is deferred because the official host has no
 verified `tuiSettingsSections` consumer.
 
 ## Configuration
+
+Catalog synchronization starts at about 0.5 seconds, with conditional retries at
+3 and 15 seconds. An hourly check refreshes results older than six hours. Manual
+sync uses the same writer and freshness timestamp. Failures retain valid data;
+disable/unload cancels reads and invalidates late writes. Quota polling does not
+fetch the full catalog. Cache v4 isolates the API address, account and credential
+fingerprint; older caches are refetched. A failed cache save shows a warning while
+settings and model calls remain usable.
+
+FREE badges/filtering use exact IDs from the gateway's explicit recommendation
+`free` list, verified on 2026-10-29. Names and zero reference prices are not free
+evidence; directory metadata does not verify account access or billing. Dated
+models use exact listed IDs and version-specific metadata, without rewriting
+vendor IDs to Pass IDs, extending verified plan membership or importing models.
+
+The proxy cools HTTP 402 for five minutes per account and exact model, and can
+try another account before the first output. Other models on that account remain
+available. Recovery can target one model; account-only API requests still clear
+all its cooldowns. Direct calls, probes and smoke tests do not rotate the global
+account on 402. HTTP 413 and recognized request-size errors fail without retry or
+account rotation, with advice to reduce messages/images or start a new session.
+Context token overflow remains separate. New statistics distinguish insufficient
+credits, rate limits and oversized requests; historical aggregates are not reclassified.
 
 ```yaml
 dsh-clinebot:
@@ -289,8 +313,9 @@ existing next-turn rotation. Connect, first-output and JSON-body deadlines defau
 to 15 seconds, stream idle to 30 seconds, total to 300 seconds, and the complete
 request body to 32 MiB. Edit these under Proxy and account routing. Native image
 size limits are separate; historical offload requires the host image-offload
-plugin and keeps original session attachments. See the
-[sync plan](docs/maintenance/UPSTREAM_SYNC_PLAN.md) for remaining work.
+plugin and keeps original session attachments. The proxy accepts exact IDs from
+the plugin model list; add a new model before calling it. See the
+[validation record](docs/maintenance/VALIDATION.md) for observed coverage.
 
 Statistics use `<current profile directory>/clinepass/stats.json`, with atomic
 replacement and the host's file lock for concurrent writers. Daily/model/account

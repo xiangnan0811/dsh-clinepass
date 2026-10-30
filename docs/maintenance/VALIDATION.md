@@ -1,5 +1,81 @@
 # Validation record
 
+## 0.8.2 upstream adoption (2026-10-30)
+
+Release candidate above `8f4c3be`, selectively adapting upstream
+`fb348e573dd902691c1f73addff134da7bb4fedc` (0.6.21). Implementation acceptance
+completed on 2026-10-29; version 0.8.2 packaging is verified for publication on
+2026-10-30. The runtime/client matches that accepted candidate; the release
+changes only version metadata, packaging of the relocated plan, and documentation.
+
+`npm test` passes 257 tests with zero failures/skips, including client consistency,
+locale/placeholder parity and lint. The client is 231667 bytes, below 256 KiB.
+The full run resolves `dsh` and protocol exports from the isolated
+`0.2.1-rc.4` installation, rather than assuming the global package layout.
+
+Regressions cover HTTP status precedence, bounded 64 KiB error reads and stalled
+413 bodies, structured JSON/SSE failures, malformed-stream redaction, native SDK
+error wrapping and conversation failover hooks, strict provider pins, last-account
+402 cooldown, expiry/recovery/key replacement/deletion, stale routing snapshots,
+unknown-model rejection, separate error counters and historical aggregate
+compatibility. Catalog checks cover delayed readiness, startup retry/freshness,
+unchanged success, hourly checks, one in-flight task and latest demand, manual
+sync, cancellation during credential resolution, disabled/unloaded instances,
+partial sources, cache-save failures and credential-isolated cache restoration.
+Offline same-name key replacement and deletion of the resolved fallback account
+clear its old verified plan before a failed refresh, including when no key remains.
+The host's public string-valued credential-update event is exercised through the
+full plugin, preserving explicit empty selection, custom declarations and pins.
+Hourly/six-hour timing and five-minute expiry use controlled clocks in tests.
+
+The configured default gateway was queried read-only without credentials:
+[recommendations](https://api.cline.bot/api/v1/ai/cline/recommended-models)
+returned an explicit `free` bucket and the exact Pass 1017 ID; the
+[detailed catalog](https://api.cline.bot/api/v1/ai/cline/models) returned
+version-specific vendor metadata. FREE uses exact bucket membership. No paid
+generation was issued for this source investigation. Recommendation visibility
+does not become plan membership, a vendor ID does not create a Pass ID, and
+stable-alias capabilities/free flags/pins are not copied to dated versions.
+
+An `npm pack` archive was installed into a new Linux rc.4 Web profile with its own
+`DSH_HOME`, browser profile and local HTTP/SSE gateway. The reviewed archive's
+96 files matched both the checkout and installed package byte-for-byte. A second
+archive installation through the actual Plugins UI hot-replaced the initial
+candidate; the newly added discovery status field and a successful pinned call
+confirmed that the new runtime loaded. The reviewed package then repeated the
+native matrix with 12 fixture generation requests: first cold direct call,
+startup catalog failure followed by retry recovery, direct/proxy 402 and 413,
+no global account change, another model on the same account, scoped/account-wide
+recovery, the final failed candidate and full-pool exhaustion, post-output failure
+without replay, shared manual sync, restart persistence and the first proxy call
+after restart. Missing usage remained unmeasured.
+
+Chromium exercised FREE filtering, API/Pass discovery lanes and FREE candidates,
+exact scope recovery, manual synchronization, the cache-save warning, incomplete
+catalog error, retained valid metadata and successful recovery. A model call
+still succeeded while the cache path was unwritable. Chinese dark and English
+light views were inspected at 390px and 1280px; the 390px page and modal had
+390/390 and 342/342 client/scroll widths. Escape closed the native modal and
+restored focus. Actual component disable closed its old proxy socket and removed
+the owned proxy credential; re-enable restored a successful pinned call.
+
+Read-only inspection and focused repair review covered the changed contracts
+and callers. Confirmed issues were repaired: late credential validation after
+unload, stale proxy snapshots, direct responses overriding local pin-observation
+headers, malformed SSE error text, cancellation starting a fallback read, and
+discovery warnings being overwritten by ordinary provider synchronization.
+The final identity check also invalidates persisted data when the resolved
+fallback account changes without changing the configured primary/pin.
+The affected regressions and full suite passed after repair.
+
+Cache v4 refetches older versions and binds snapshots to credential fingerprints;
+cached custom metadata never grants extra plan membership. New error counters do
+not reclassify old totals. Existing 0.8.1 reference-cost/budget rules are retained.
+No GitHub workflow is configured; these are local and isolated-native results,
+not CI. Real ClinePass account entitlement/billing/provider enforcement, Desktop,
+and daily-profile installation were not tested or changed. Candidate/tag and
+downloaded-asset checks are recorded in the release verification attachment.
+
 ## 0.8.1 overview rework and reference cost (2026-10-27)
 
 Candidate above `7d3578f`. `npm test` passes 227 tests, including lint, locale

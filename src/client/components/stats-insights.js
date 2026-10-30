@@ -58,7 +58,8 @@ function KpiRow({ summary, cost, analytics, t }) {
   return React.createElement('div', { className: 'cb-kpis' }, items.map((item) => React.createElement('div', { className: 'cb-kpi', key: item.key },
     React.createElement('span', null, item.label),
     React.createElement('b', { title: item.title }, item.value),
-    React.createElement('small', { className: item.tone ? `cb-kpi-note-${item.tone}` : undefined }, item.note))))
+    React.createElement('small', { className: item.tone ? `cb-kpi-note-${item.tone}` : undefined }, item.note),
+    item.key === 'requests' ? React.createElement('small', null, t('stats.error_classes', { credits: summary.insufficientCredits || 0, large: summary.requestTooLarge || 0 })) : null)))
 }
 
 function TokenComposition({ summary, t }) {

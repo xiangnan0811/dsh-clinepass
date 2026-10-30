@@ -34,6 +34,7 @@ function ModelsSection({
   modelsSearch,
   setModelsSearch,
   config,
+  discoveryState,
   providerReasoning,
   handleSyncPlanModels,
   handleSetModelsFilter,
@@ -48,7 +49,7 @@ function ModelsSection({
   const custom = new Set((config.customModels || []).filter(row => row.userDeclared).map(row => row.id))
   const groupFor = model => custom.has(model.id) ? 'custom' : plan.has(model.id) ? 'plan' : 'other'
   const groups = ['plan', 'other', 'custom']
-  const orderedModels = groups.flatMap(group => modelsList.filter(model => groupFor(model) === group))
+  const orderedModels = groups.flatMap(group => modelsList.filter(model => groupFor(model) === group).sort((a, b) => Number(!!b.free) - Number(!!a.free)))
 
   function openEditor(model) {
     const override = model.override || {}
@@ -103,11 +104,13 @@ function ModelsSection({
       )
     ),
     React.createElement('div', { className: 'cb-section-desc' }, t('models.desc')),
+    discoveryState?.error ? React.createElement('div', { className: 'cb-alert-bad' }, t('models.refresh_failed')) : null,
+    discoveryState?.warning ? React.createElement('div', { className: 'cb-banner-warning' }, t('models.cache_warning')) : null,
     React.createElement(
       'div',
       { className: 'cb-toolbar' },
       React.createElement('div', { className: 'cb-tabs', role: 'group', 'aria-label': t('nav.models') },
-        [['all', 'models.all'], ['vision', 'models.vision'], ['coding', 'models.coding'], ['recommended', 'models.recommended']].map(([id, key]) => React.createElement(
+        [['all', 'models.all'], ['free', 'models.free'], ['vision', 'models.vision'], ['coding', 'models.coding'], ['recommended', 'models.recommended']].map(([id, key]) => React.createElement(
           'button',
           {
             key: id,
@@ -149,6 +152,7 @@ function ModelsSection({
           React.createElement('div', { className: 'cb-model-main' },
             React.createElement('div', { className: 'cb-model-head' },
               React.createElement('strong', null, model.name),
+              model.free ? React.createElement('span', { className: 'cb-badge', title: t('models.free_hint') }, 'FREE') : null,
               model.legacy ? React.createElement('span', { className: 'cb-badge' }, t('models.legacy')) : null,
               React.createElement('button', {
                 type: 'button',

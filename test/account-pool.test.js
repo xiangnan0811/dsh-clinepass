@@ -130,7 +130,7 @@ test('pool edits do not replace the primary credential', () => {
 
 test('rate-limit detection ignores a bare quota or credit mention', () => {
   assert.equal(isRateLimitFailure({ status: 429, message: 'slow down', code: 'rate_limit_exceeded' }), true)
-  assert.equal(isRateLimitFailure({ status: 402, message: 'payment required', code: 'billing' }), true)
+  assert.equal(isRateLimitFailure({ status: 402, message: 'payment required', code: 'billing' }), false)
   assert.equal(isRateLimitFailure({ message: 'You have exceeded your quota', code: 'quota' }), true)
   assert.equal(isRateLimitFailure({ message: 'remaining quota 40%', code: 'ok' }), false)
   assert.equal(isRateLimitFailure({ message: 'insufficient credits', code: 'billing' }), false)
@@ -140,7 +140,9 @@ test('rate-limit detection ignores a bare quota or credit mention', () => {
     code: 'QUOTA',
     message: 'You exceeded your current quota, please check your plan and billing details.',
   }), true)
-  assert.equal(isRateLimitFailure({ code: 'PI_AI_ERROR', message: '402 Payment Required' }), true)
+  assert.equal(isRateLimitFailure({ code: 'PI_AI_ERROR', message: '402 Payment Required' }), false)
+  assert.equal(isRateLimitFailure({ status: 413, code: 'QUOTA', message: 'rate limit' }), false)
+  assert.equal(isRateLimitFailure({ code: 'PI_AI_ERROR', message: 'This context mentions quota exceeded and rate limit' }), false)
   assert.equal(isRateLimitFailure({ code: 'PI_AI_ERROR', message: 'rate_limit_exceeded' }), true)
   assert.equal(isKnownAccountEnv({ apiKeyEnv: 'CLINEBOT_API_KEY', accounts: [{ apiKeyEnv: 'CLINEBOT_API_KEY_2' }] }, 'CLINEBOT_API_KEY_2'), true)
   assert.equal(isKnownAccountEnv({ apiKeyEnv: 'CLINEBOT_API_KEY', accounts: [] }, 'OPENAI_API_KEY'), false)

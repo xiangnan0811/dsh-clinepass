@@ -1,5 +1,36 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+
+test('model cooldown recovery, expiry and credential invalidation remain isolated', () => {
+  let time = 1000000
+  const events = [], router = createSessionRouter({ now: () => time, onEvent: event => events.push(event) })
+  const accounts = [{ apiKeyEnv: 'A', present: true, value: 'fake-a' }]
+  const plan = model => router.plan({ accounts, baseUrl: 'https://gateway.test', model })
+  const old = plan('m1')
+  old.fail(accounts[0], { code: 'INSUFFICIENT_CREDITS' })
+  plan('m2').fail(accounts[0], { code: 'INSUFFICIENT_CREDITS' })
+  assert.equal(plan('m3').accounts.length, 1)
+  assert.equal(plan('m1').accounts.length, 0)
+  router.clearCooldown('A', 'm1')
+  assert.deepEqual(router.status().cooldowns.map(row => row.model), ['m2'])
+  plan('m3').commit(accounts[0])
+  assert.equal(router.status().cooldowns.length, 1)
+  time += 300000
+  assert.equal(plan('m2').accounts.length, 1)
+  assert.ok(events.some(event => event.reason === 'expired' && event.model === 'm2'))
+  plan('m1').fail(accounts[0], { code: 'INSUFFICIENT_CREDITS' })
+  accounts[0].value = 'replacement'
+  plan('m1')
+  old.fail(accounts[0], { code: 'INSUFFICIENT_CREDITS' })
+  assert.deepEqual(router.status().cooldowns, [])
+  plan('m1').fail(accounts[0], { code: 'RATE_LIMIT' })
+  assert.equal(plan('m2').accounts.length, 0)
+  router.clearCooldown('A')
+  assert.equal(plan('m2').accounts.length, 1)
+  plan('m1').fail(accounts[0], { code: 'INSUFFICIENT_CREDITS' })
+  accounts.length = 0; plan('m1')
+  assert.deepEqual(router.status().cooldowns, [])
+})
 import { createSessionRouter } from '../lib/session-router.js'
 
 const accounts = [

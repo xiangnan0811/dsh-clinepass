@@ -2,6 +2,98 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import test from 'node:test'
 import { createProxyServer } from '../lib/proxy-server.js'
+import { httpFailure, inspectCompletion, responseFailure } from '../lib/proxy-protocol.js'
+
+test('structured failures preserve HTTP precedence and never forward upstream text', async () => {
+  for (const [status, code] of [[401, 'AUTH'], [403, 'AUTH'], [429, 'RATE_LIMIT'], [402, 'INSUFFICIENT_CREDITS'], [413, 'REQUEST_TOO_LARGE']]) {
+    const failure = httpFailure(status, '2', 0, { error: { code: 'context_length_exceeded', message: 'secret quota credit' } })
+    assert.equal(failure.code, code)
+    assert.equal(failure.retryAfterMs, 2000)
+    assert.doesNotMatch(failure.message, /secret/)
+  }
+  for (const [code, expected] of [['too_many_json_nodes', 'REQUEST_TOO_LARGE'], ['context_length_exceeded', 'CONTEXT_WINDOW_EXCEEDED'], ['insufficient_credits', 'INSUFFICIENT_CREDITS']]) {
+    assert.throws(() => inspectCompletion({ error: { code, message: 'secret prompt' } }), failure => failure.code === expected && !failure.message.includes('secret'))
+  }
+  assert.equal(httpFailure(400, '', 0, { error: { code: 'too_many_json_nodes' } }).retryable, false)
+  assert.throws(() => inspectCompletion({ error: { status: 429, code: 'QUOTA' } }), failure => failure.code === 'RATE_LIMIT')
+  assert.throws(() => inspectCompletion({ error: { code: '402' } }), failure => failure.code === 'INSUFFICIENT_CREDITS')
+  assert.equal(httpFailure(400, '', 0, { error: { message: 'credit quota context too large' } }).code, 'UPSTREAM_HTTP')
+  let cancelled = false
+  const oversized = new Response(new ReadableStream({ pull(controller) { controller.enqueue(new Uint8Array(65537)) }, cancel() { cancelled = true } }), { status: 413 })
+  assert.equal((await responseFailure(oversized, new AbortController().signal)).code, 'REQUEST_TOO_LARGE')
+  assert.equal(cancelled, true)
+  const stalled = new Response(new ReadableStream({ cancel() { cancelled = true } }), { status: 402 })
+  const timer = setInterval(() => {}, 1000)
+  try { assert.equal((await responseFailure(stalled, AbortSignal.timeout(10))).code, 'INSUFFICIENT_CREDITS') } finally { clearInterval(timer) }
+})
+
+test('402 cools every failed account only for the exact model, including the last candidate', async t => {
+  const f = await fixture(t, (call, res) => {
+    if (JSON.parse(call.body).model === 'cline-pass/paid') { res.writeHead(402); res.end('secret'); return }
+    res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(complete))
+  })
+  let response = await f.send({ model: 'cline-pass/paid' })
+  assert.equal(response.status, 402)
+  assert.equal((await response.json()).error.code, 'INSUFFICIENT_CREDITS')
+  assert.equal(f.proxy.status().cooldowns.length, 2)
+  assert.ok(f.proxy.status().cooldowns.every(row => row.model === 'cline-pass/paid' && row.remainingMs > 290000))
+  response = await f.send({ model: 'cline-pass/paid' })
+  assert.equal(response.status, 503); await response.text()
+  assert.equal(f.calls.length, 2)
+  response = await f.send({ model: 'cline-pass/other' })
+  assert.equal(response.status, 200); await response.text()
+  assert.equal(f.proxy.status().cooldowns.length, 2)
+  f.proxy.router.clearCooldown(pool[0].apiKeyEnv, 'cline-pass/paid')
+  assert.equal(f.proxy.status().cooldowns.length, 1)
+})
+
+test('HTTP and embedded size failures do not retry, cool accounts or expose the body', async t => {
+  for (const scenario of [
+    { status: 413, code: 'INSUFFICIENT_CREDITS' },
+    { status: 400, code: 'too_many_json_nodes' },
+    { status: 200, code: 'request_too_large' },
+  ]) await t.test(String(scenario.status), async t => {
+    const f = await fixture(t, (_call, res) => { res.writeHead(scenario.status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: { code: scenario.code, message: 'secret prompt' } })) })
+    const response = await f.send()
+    assert.equal((await response.json()).error.code, 'REQUEST_TOO_LARGE')
+    assert.equal(f.calls.length, 1)
+    assert.deepEqual(f.proxy.status().cooldowns, [])
+  })
+})
+
+test('a stalled oversized HTTP error body falls back to 413 instead of causing account retries', async t => {
+  const f = await fixture(t, (_call, res) => { res.writeHead(413); res.flushHeaders() }, { limits: { bodyTimeoutMs: 15 } })
+  const response = await f.send()
+  assert.equal(response.status, 413)
+  assert.equal((await response.json()).error.code, 'REQUEST_TOO_LARGE')
+  assert.equal(f.calls.length, 1)
+  assert.deepEqual(f.proxy.status().cooldowns, [])
+})
+
+test('arbitrary model IDs cannot consume upstream calls or cooldown entries', async t => {
+  const f = await fixture(t, () => assert.fail('unknown models must not reach the gateway'))
+  const response = await f.send({ model: 'vendor/not-configured' })
+  assert.equal(response.status, 400)
+  assert.equal((await response.json()).error.code, 'UNKNOWN_MODEL')
+  assert.deepEqual(f.proxy.status().cooldowns, [])
+})
+
+test('a changed snapshot cannot route, cool or retry frozen credentials into the new identity', async t => {
+  for (const beforeRequest of [true, false]) await t.test(String(beforeRequest), async t => {
+    let current = true, calls = 0
+    const proxy = createProxyServer({
+      snapshot: async () => ({ config: { enabled: true, proxyEnabled: true, baseUrl: 'https://gateway.test/v1' }, accounts: pool, isCurrent: () => current }),
+      beforeRequest: async () => { if (beforeRequest) current = false },
+      fetchImpl: async () => { calls++; current = false; return new Response('{}', { status: 402 }) },
+    })
+    await proxy.start(); t.after(() => proxy.stop())
+    const response = await fetch(`${proxy.baseUrl}/chat/completions`, { method: 'POST', headers: { Authorization: `Bearer ${proxy.token}` }, body: JSON.stringify({ model: 'cline-pass/deepseek-v4.1-flash', messages: [] }) })
+    assert.equal(response.status, 409)
+    assert.equal((await response.json()).error.code, 'CONFIGURATION_CHANGED')
+    assert.equal(calls, beforeRequest ? 0 : 1)
+    assert.deepEqual(proxy.status().cooldowns, [])
+  })
+})
 
 const frame = (delta = {}, extra = {}) => `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason: null }], ...extra })}\n\n`
 const terminal = frame({}, { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 8, completion_tokens: 2, total_tokens: 10 } }) + 'data: [DONE]\n\n'
@@ -22,7 +114,8 @@ async function fixture(t, responder, { limits = {}, config = {} } = {}) {
     await responder(call, res)
   })
   await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve))
-  const cfg = { enabled: true, proxyEnabled: true, baseUrl: `http://127.0.0.1:${upstream.address().port}`, ...config }
+  const cfg = { enabled: true, proxyEnabled: true, baseUrl: `http://127.0.0.1:${upstream.address().port}`,
+    customModels: ['cline-pass/test', 'cline-pass/paid', 'cline-pass/other'].map(id => ({ id })), ...config }
   const proxy = createProxyServer({ limits, snapshot: async () => ({ config: cfg, accounts: pool.map((account) => ({ ...account })) }),
     onRequest(metrics) { records.push(metrics); for (const resolve of waiting.splice(0)) resolve() } })
   await proxy.start()

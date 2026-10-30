@@ -44,9 +44,9 @@ function ProxySection({ status, draft, busy, saveSettings, reload, t }) {
         React.createElement('td', null, React.createElement('code', null, row.model)), React.createElement('td', null, React.createElement('code', null, row.account)),
         React.createElement('td', { className: 'cb-actions' }, React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm cb-btn-ghost', disabled: !!busy, onClick: () => saveSettings({ modelRoutes: routes.filter((route) => route.model !== row.model) }) }, t('proxy.route_remove')))))))) : null),
     React.createElement('div', { className: 'cb-footnote', key: 'runtime' }, t('proxy.runtime', { requests: status.proxy?.activeRequests || 0, sessions: status.proxy?.sessions || 0 })),
-    ...(status.proxy?.cooldowns || []).map((entry) => React.createElement('div', { className: 'cb-row', key: `cooldown:${entry.account}` },
-      React.createElement('span', { className: 'cb-model-id' }, `${entry.account} · ${entry.reason} · ${Math.ceil(entry.remainingMs / 1000)}s`),
-      React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => post('cooldown', { account: entry.account }) }, t('proxy.recover')))),
+    ...(status.proxy?.cooldowns || []).map((entry) => React.createElement('div', { className: 'cb-row', key: JSON.stringify(['cooldown', entry.account, entry.model]) },
+      React.createElement('span', { className: 'cb-model-id' }, `${entry.account} · ${entry.model || t('proxy.all_models')} · ${t(`history.reason_${entry.reason}`)} · ${Math.ceil(entry.remainingMs / 1000)}s`),
+      React.createElement('button', { type: 'button', className: 'cb-btn cb-btn-sm', disabled: !!busy, onClick: () => post('cooldown', { account: entry.account, model: entry.model || '' }) }, t('proxy.recover')))),
   ]
   return React.createElement('div', { className: 'cb-section-card' },
     React.createElement('div', { className: 'cb-section-title' }, t('proxy.title')),

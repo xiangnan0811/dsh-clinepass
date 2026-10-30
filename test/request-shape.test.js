@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { dirname } from 'node:path'
 import test from 'node:test'
 import { getAllModels } from '../lib/models.js'
 import { buildProviderPayload } from '../lib/provider-payload.js'
@@ -10,8 +9,9 @@ import { smokeChat } from '../lib/cline-client.js'
 import { applyUpstreamPin, reportedUpstreams, upstreamPinFailure, reportedRoutingEvidence } from '../lib/upstream-pin.js'
 
 const dshLib = dirname(realpathSync(execFileSync('which', ['dsh'], { encoding: 'utf8' }).trim()))
-const piEntry = join(dshLib, '../node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js')
-const { streamSimple } = await import(pathToFileURL(piEntry).href)
+const protocolUrl = execFileSync(process.execPath, ['--input-type=module', '-e', "console.log(import.meta.resolve('@earendil-works/pi-ai/api/openai-completions.lazy'))"], { cwd: dshLib, encoding: 'utf8' }).trim()
+const { openAICompletionsApi } = await import(protocolUrl)
+const { streamSimple } = openAICompletionsApi()
 
 const LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
 

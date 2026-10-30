@@ -37,7 +37,7 @@ function AccountHistory({ t }) {
     React.createElement('div', { className: 'cb-table-box' }, React.createElement('table', { className: 'cb-table' }, React.createElement('tbody', null,
       data?.events.map(event => React.createElement('tr', { key: event.id },
         React.createElement('td', { className: 'cb-nowrap' }, new Date(event.at).toLocaleString()),
-        React.createElement('th', { scope: 'row' }, React.createElement('code', null, event.account)),
+        React.createElement('th', { scope: 'row' }, React.createElement('code', null, event.account), event.model ? React.createElement('div', { className: 'cb-model-id' }, event.model) : null),
         React.createElement('td', null, t(`history.${event.type}`)),
         React.createElement('td', null, t(`history.reason_${event.reason}`)),
         React.createElement('td', null, event.until ? new Date(event.until).toLocaleTimeString() : '—')))))))

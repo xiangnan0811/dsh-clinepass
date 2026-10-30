@@ -12,7 +12,7 @@ import { getAllModels } from '../lib/models.js'
 import { createProxyServer } from '../lib/proxy-server.js'
 import { createNativeAdapterController } from '../lib/native-adapter-controller.js'
 import { parseConfig } from '../lib/config.js'
-import { measureStream } from '../lib/stream-failover.js'
+import { measureStream, attachStreamFailover, resetFailoverClock } from '../lib/stream-failover.js'
 import { createModelProbe } from '../lib/model-probe.js'
 import { clinepassUsageProjection } from '../lib/session-usage.js'
 
@@ -26,12 +26,59 @@ const protocol = await import(protocolUrl)
 const deps = { ...pi, ...llm, ...protocol }
 const model = 'cline-pass/deepseek-v4.1-flash'
 
-async function mock(t, { reportUsage = true, provider, lateProvider = false, directProvider = false, cacheWrite, usage } = {}) {
+test('native public transport preserves safe 402/413/structured errors through SDK wrapping without retries', async t => {
+  for (const scenario of [
+    { status: 402, code: 'irrelevant', expected: 'INSUFFICIENT_CREDITS' },
+    { status: 413, code: 'insufficient_credits', expected: 'REQUEST_TOO_LARGE' },
+    { status: 400, code: 'too_many_json_nodes', expected: 'REQUEST_TOO_LARGE' },
+    { status: 400, code: 'context_length_exceeded', expected: 'CONTEXT_WINDOW_EXCEEDED' },
+    { status: 200, code: 'insufficient_credits', expected: 'INSUFFICIENT_CREDITS' },
+    { status: 200, sse: true, code: 'request_too_large', expected: 'REQUEST_TOO_LARGE' },
+    { status: 200, sse: true, raw: '{"error":"secret credential', expected: 'INVALID_RESPONSE' },
+    { status: 200, sse: true, plain: true, code: 'request_too_large', expected: 'REQUEST_TOO_LARGE' },
+    { status: 200, sse: true, late: true, code: 'insufficient_credits', expected: 'INSUFFICIENT_CREDITS' },
+  ]) await t.test(`${scenario.status}/${scenario.code}/${!!scenario.sse}/${!!scenario.late}`, async t => {
+    let calls = 0
+    const server = http.createServer(async (req, res) => {
+      for await (const _part of req) { /* drain */ }
+      calls++
+      const error = { error: { code: scenario.code, message: 'secret credential and prompt' } }
+      res.writeHead(scenario.status, { 'Content-Type': scenario.plain ? 'text/plain' : scenario.sse ? 'text/event-stream' : 'application/json' })
+      if (scenario.late) {
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: 'first' }, finish_reason: null }] })}\n\n`)
+        await new Promise(resolve => setTimeout(resolve, 15))
+      }
+      res.end(scenario.sse ? `data: ${scenario.raw || JSON.stringify(error)}\n\ndata: [DONE]\n\n` : JSON.stringify(error))
+    })
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+    t.after(() => { server.closeAllConnections(); server.close() })
+    const state = { profile: buildProviderPayload({ baseUrl: `http://127.0.0.1:${server.address().port}/v1`, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [] }
+    const metadata = new WeakMap(), records = []
+    const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fixture-key', noteDispatch: (options, route) => metadata.set(options, route) })
+    let globalAccountWrites = 0
+    resetFailoverClock()
+    const service = await runtime(t, adapter, (options, next) => measureStream(next(), options, () => metadata.get(options), record => records.push(record)), inner => attachStreamFailover(inner, {
+      live: () => ({ apiKeyEnv: 'CLINEBOT_API_KEY_NATIVE_S1', activeAccount: 'CLINEBOT_API_KEY_NATIVE_S1' }),
+      getSettingsApi: () => { globalAccountWrites++; return null }, dispatchMetadata: metadata,
+    }))
+    const prepared = await service.prepareCall({ provider: 'clinebot', model })
+    const chunks = await Array.fromAsync(prepared.stream({ ...prepared.config, messages: [{ role: 'user', content: [{ type: 'text', text: 'ping' }] }] }))
+    assert.equal(chunks.at(-1).reason.failure.code, scenario.expected)
+    assert.doesNotMatch(JSON.stringify(chunks), /secret credential/)
+    assert.equal(records[0].attempts[0].code, scenario.expected)
+    assert.equal(calls, 1)
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(globalAccountWrites, 0)
+    if (scenario.late) assert.ok(chunks.some(chunk => chunk.type === 'text-delta' && chunk.text === 'first'))
+  })
+})
+
+async function mock(t, { reportUsage = true, provider, lateProvider = false, directProvider = false, cacheWrite, usage, headers = {} } = {}) {
   const calls = []
   const server = http.createServer(async (req, res) => {
     const parts = []; for await (const part of req) parts.push(part)
     calls.push({ body: JSON.parse(Buffer.concat(parts).toString()), headers: req.headers })
-    res.writeHead(200, { 'Content-Type': 'text/event-stream' })
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', ...headers })
     const chunk = (delta, finish_reason = null) => {
       const report = provider && (lateProvider ? finish_reason !== null : !!delta.content)
       return `data: ${JSON.stringify({ id: 'native-test', object: 'chat.completion.chunk', created: 1, model,
@@ -45,13 +92,14 @@ async function mock(t, { reportUsage = true, provider, lateProvider = false, dir
   return { baseUrl: `http://127.0.0.1:${server.address().port}/v1`, calls }
 }
 
-async function runtime(t, adapter, observe) {
+async function runtime(t, adapter, observe, setup) {
   const ctx = new Context()
   await ctx.plugin(llm.default)
   let service
   await ctx.plugin({ name: 'cline-adapter-test', inject: ['llm'], apply(inner) {
     service = inner.llm; service.registerAdapter(['clinebot'], adapter)
     if (observe) inner.on('llm/stream', observe, { global: true })
+    setup?.(inner)
   } })
   t.after(() => ctx.fiber.dispose())
   return service
@@ -66,6 +114,17 @@ async function dispatch(prepared, sessionId) {
   assert.equal(Object.isFrozen(options), true)
   return options
 }
+
+test('direct upstream headers cannot replace the configured pin observation', async t => {
+  const upstream = await mock(t, { provider: 'deepseek', headers: { 'x-clinepass-upstream-pin': 'private', 'x-clinepass-upstream-pin-attached': '0' } })
+  const state = { profile: buildProviderPayload({ baseUrl: upstream.baseUrl, apiKeyEnv: 'CLINEBOT_API_KEY', models: getAllModels({}) }).payload, overrides: [], upstreamPins: [{ model, provider: 'deepseek' }] }
+  const metadata = new WeakMap()
+  const adapter = createClineAdapter(deps, { state: () => state, resolveKey: async () => 'fixture-key', noteDispatch: (options, route) => metadata.set(options, route) })
+  const service = await runtime(t, adapter)
+  const options = await dispatch(await service.prepareCall({ provider: 'clinebot', model }))
+  assert.equal(metadata.get(options).upstreamPin, 'deepseek')
+  assert.equal(metadata.get(options).upstreamPinAttached, true)
+})
 
 test('native budget guard blocks before sending and does not create unknown usage records', async t => {
   const upstream = await mock(t)

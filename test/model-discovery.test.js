@@ -17,6 +17,27 @@ const detail = { id: 'vendor/future-7', name: 'Future 7', context_length: 999999
   architecture: { input_modalities: ['text', 'image'] }, supported_parameters: ['reasoning_effort'] }
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status })
 
+test('FREE uses the explicit gateway bucket and dated IDs never create plan membership or aliases', async () => {
+  const exact = 'vendor/paid-1017', pass = 'cline-pass/paid-1017'
+  const result = await discoverModels('https://gateway.test/v1', '', { fetchImpl: async url => json(url.endsWith('recommended-models')
+    ? { clinePass: [{ id: pass }], free: [{ id: 'vendor/real-free' }] }
+    : { data: [{ id: exact, context_length: 64000 }, { id: 'vendor/name-free', name: 'FREE', pricing: { prompt: '0', completion: '0' } }, { id: '@preset/x' }, { id: '~x/y' }, { id: 'vendor/x:batch' }] }) })
+  assert.equal(result.models.find(row => row.id === 'vendor/real-free').free, true)
+  assert.equal(result.models.find(row => row.id === 'vendor/name-free').free, undefined)
+  assert.equal(result.models.find(row => row.id === pass).parameters.contextWindow, 64000)
+  assert.equal(result.models.some(row => row.id === 'cline-pass/name-free'), false)
+  assert.equal(result.models.some(row => row.id.includes(':batch') || /^[~@]/.test(row.id)), false)
+  const ambiguous = mergeModelDiscovery([{ id: pass }], [{ id: exact }, { id: 'other/paid-1017' }]).find(row => row.id === pass)
+  assert.equal(ambiguous.parameters.contextWindow, undefined)
+  const cfg = parseConfig({ selectionKind: 'explicit', explicitModels: [], planVerified: true, discoveredPlanIds: ['cline-pass/paid'],
+    catalogMetadata: [{ id: 'vendor/real-free', free: true, freeSource: '/ai/cline/recommended-models#free' }],
+    customModels: [{ id: 'vendor/real-free', userDeclared: true }] })
+  assert.deepEqual(selectedIds(getAllModels(cfg), cfg), [])
+  assert.equal(getAllModels(cfg).find(row => row.id === 'vendor/real-free').free, true)
+  assert.equal(cfg.discoveredPlanIds.includes(pass), false)
+  assert.equal(clearPlanDiscovery(cfg).catalogMetadata.length, 0)
+})
+
 test('discovery enriches only listed Pass IDs and keeps ordinary API billing IDs distinct', () => {
   const rows = mergeModelDiscovery([{ id: future, name: future }], [detail, { id: 'vendor/next-8' }])
   const pass = rows.find(row => row.id === future)

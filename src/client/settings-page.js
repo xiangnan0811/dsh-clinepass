@@ -490,6 +490,7 @@ function SettingsPage(props) {
     if (modelsFilter === 'vision') return model.input?.includes('image') || model.vendorInput?.includes('image')
     if (modelsFilter === 'coding') return model.category === 'coding'
     if (modelsFilter === 'recommended') return model.recommended
+    if (modelsFilter === 'free') return model.free === true
     return true
   })
   const enabledSet = new Set(draft.enabledModels || status.config?.enabledModels || [])
@@ -526,6 +527,7 @@ function SettingsPage(props) {
     showUsage && ['quota', [React.createElement(QuotaSection, { keyPresent, status, usage, accountUsage, busy, handleRefreshQuota, t })]],
     ['models', [
     React.createElement(ModelsSection, {
+      discoveryState: status.sync?.discovery,
       modelsList,
       enabledSet,
       enabledCount,

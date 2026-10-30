@@ -395,10 +395,10 @@ test('cache keeps a version and a failed read does not invent an empty catalog',
     assert.deepEqual(stale.discoveredIds, [])
     const raw = await readFile(file, 'utf8')
     assert.match(raw, /old/)
-    assert.equal(await saveModelsDiskCache(file, { discoveredIds: [], unknownModels: [] }), false)
+    assert.equal(await saveModelsDiskCache(file, { discoveredIds: [], unknownModels: [] }), true)
     assert.equal(await saveModelsDiskCache(file, { discoveredIds: ['cline-pass/glm-5.2'], unknownModels: [] }), true)
     const fresh = await loadModelsDiskCache(file)
-    assert.equal(fresh.version, 3)
+    assert.equal(fresh.version, 4)
     assert.deepEqual(fresh.discoveredIds, ['cline-pass/glm-5.2'])
     const identity = {
       baseUrl: 'https://api.cline.bot/api/v1',

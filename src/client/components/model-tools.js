@@ -7,6 +7,7 @@ function ModelTools({ config, modelsList, saveModelPatch, busy, t }) {
   const [discovering, setDiscovering] = React.useState(false)
   const [search, setSearch] = React.useState('')
   const [lane, setLane] = React.useState('pass')
+  const [freeOnly, setFreeOnly] = React.useState(false)
   const discoveryRun = React.useRef(0)
   React.useEffect(() => {
     discoveryRun.current++
@@ -69,7 +70,8 @@ function ModelTools({ config, modelsList, saveModelPatch, busy, t }) {
     setCustom({ id: model?.id || '', name: model?.name || '', builtIn: !!config.availableModels?.find((row) => row.id === id)?.known, inputMode: override.inputMode || 'inherit',
       ...Object.fromEntries(fields.map(([key]) => [key, override[key] === 'inherit' ? '' : String(override[key] || '')])) })
   }
-  const candidates = (discovery?.models || []).filter((model) => model.lane === lane && `${model.id} ${model.name}`.toLowerCase().includes(search.toLowerCase()))
+  const candidates = (discovery?.models || []).filter((model) => model.lane === lane && (!freeOnly || model.free === true) && `${model.id} ${model.name}`.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => Number(!!b.free) - Number(!!a.free))
   return React.createElement(React.Fragment, null,
     React.createElement('div', { className: 'cb-row' },
       [['none', 'models.select_none'], ['plan', 'models.select_plan'], ['clean', 'models.clean_selection']].map(([action, label]) =>
@@ -96,10 +98,12 @@ function ModelTools({ config, modelsList, saveModelPatch, busy, t }) {
             React.createElement('option', { value: 'api' }, t('models.discovery_api'))),
           React.createElement('input', { className: 'cb-input cb-grow', type: 'search', value: search, placeholder: t('models.search'), 'aria-label': t('models.search'), onChange: (event) => setSearch(event.target.value) })),
         React.createElement('div', { className: 'cb-section-desc' }, t(lane === 'pass' ? 'models.discovery_pass_hint' : 'models.discovery_api_hint')),
+        React.createElement('label', { className: 'cb-check' }, React.createElement('input', { type: 'checkbox', checked: freeOnly, onChange: event => setFreeOnly(event.target.checked) }), t('models.free')),
+        React.createElement('div', { className: 'cb-footnote' }, t('models.free_hint')),
         React.createElement('label', { className: 'cb-field' }, t('models.discovery_choose', { count: candidates.length }),
           React.createElement('select', { className: 'cb-input', value: candidates.some((row) => row.id === custom.id) ? custom.id : '', disabled: !!busy, onChange: (event) => chooseModel(event.target.value) },
             React.createElement('option', { value: '' }, t('models.discovery_placeholder')),
-            candidates.map((model) => React.createElement('option', { key: model.id, value: model.id }, `${model.name} · ${model.id}`)))),
+            candidates.map((model) => React.createElement('option', { key: model.id, value: model.id }, `${model.free ? 'FREE · ' : ''}${model.name} · ${model.id}`)))),
         discovery.warnings?.length ? React.createElement('div', { className: 'cb-banner-warning' }, t('models.discovery_partial'), ' ', discovery.warnings.join('; ')) : null) : null,
       React.createElement('label', { className: 'cb-field' }, t('models.custom_title'),
       React.createElement('select', { className: 'cb-input', value: config.customModels?.some((model) => model.id === custom.id) ? custom.id : '', onChange: (event) => editCustom(event.target.value), 'aria-label': t('models.custom_title') },

@@ -226,3 +226,36 @@ test('a failed provider synchronization remains visible in the full plugin statu
   assert.equal(status.sync.ok, false)
   assert.equal(status.sync.error, 'Fixture provider configuration is locked')
 })
+
+test('the native string credential-update event clears active discovery without changing user choices', { timeout: 3000 }, async t => {
+  const scratch = new URL('../.tmp/agent/', import.meta.url)
+  await mkdir(scratch, { recursive: true })
+  const dir = await mkdtemp(join(scratch.pathname, 'credential-event-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const server = http.createServer((_req, res) => { res.writeHead(503, { 'Content-Type': 'application/json' }); res.end('{}') })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  t.after(() => { server.closeAllConnections(); return new Promise(resolve => server.close(resolve)) })
+  let cfg = parseConfig({ migrationRevision: 1, selectionKind: 'explicit', explicitModels: [], baseUrl: `http://127.0.0.1:${server.address().port}/v1`,
+    modelsCachePath: join(dir, 'models.json'), planVerified: true, discoveredPlanIds: ['cline-pass/deepseek-v4.1-flash'], planSyncIdentity: 'old-key-identity',
+    customModels: [{ id: 'vendor/mine', userDeclared: true }], upstreamPins: [{ model: 'cline-pass/deepseek-v4.1-flash', provider: 'deepseek' }] })
+  const handlers = new Map(), cleanups = []
+  const settings = {
+    register: () => ({ get: () => cfg, update: async patch => { cfg = parseConfig({ ...cfg, ...patch }) }, watch: () => () => {} }),
+    get: () => ({ providers: {} }), mutate: async () => {},
+  }
+  const ctx = { settings, credentials: { resolve: async () => ({ value: 'new-fixture-key' }) },
+    get(name) { return this[name] }, inject(names, fn) { if (names.every(name => this[name])) fn(this) },
+    on(name, fn) { handlers.set(name, fn); return () => handlers.delete(name) },
+    effect(run) { const cleanup = run(); if (typeof cleanup === 'function') cleanups.push(cleanup) },
+  }
+  const api = apply(ctx, cfg)
+  t.after(async () => { for (const cleanup of cleanups.reverse()) await cleanup() })
+  await api.registerProvider()
+  handlers.get('credentials/reference-updated')('CLINEBOT_API_KEY')
+  for (let i = 0; i < 1000 && cfg.planVerified; i++) await new Promise(resolve => setImmediate(resolve))
+  assert.equal(cfg.planVerified, false)
+  assert.deepEqual(cfg.discoveredPlanIds, [])
+  assert.deepEqual(cfg.explicitModels, [])
+  assert.equal(cfg.customModels[0].userDeclared, true)
+  assert.equal(cfg.upstreamPins[0].provider, 'deepseek')
+})
