@@ -35,6 +35,8 @@ const files = [
   'test/account-pool.test.js',
   'test/stream-failover.test.js',
   'test/slash-command.test.js',
+  'test/path-safety.test.js',
+  'test/payload-sanitize.test.js',
 ]
 execFileSync(process.execPath, ['--test', ...files], {
   cwd: root,

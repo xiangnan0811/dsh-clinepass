@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.3 — 2026-11-02
+
+Selectively adopt upstream `c8d7963` (0.6.23) above `fb348e5` (0.6.21):
+
+- Restrict `modelsCachePath` configuration updates in `PUT /dsh-clinebot/config`
+  to safe `.json` paths strictly inside `DSH_HOME` (`~/.dsh` by default). Reject
+  null bytes, directory traversal, protected configuration/manifest filenames
+  (`package.json`, `package-lock.json`, `tsconfig.json`, `settings.json`,
+  `.credentials.json`, `settings.yaml`, `settings.yml`) and non-`clinebot-*`
+  paths under `profiles/`. Fix POSIX `~/...` expansion so `~/` resolves relative
+  to `$HOME` instead of `/`.
+- Degrade failed or non-URL `image_url` content blocks in `messages[].content[]`
+  to plain `{ type: "text", text: ... }` blocks before upstream dispatch in both
+  the loopback proxy (`lib/proxy-server.js`) and direct native adapter calls
+  (`lib/native-adapter.js`). Valid `data:image/*;base64,` URIs, `http(s)://`
+  links and unmodified payloads pass through without extra copying.
+
 ## 0.8.2 — 2026-10-30
 
 Selectively adapt upstream `fb348e5` (0.6.21): HTTP 402 now reports insufficient

@@ -1,5 +1,30 @@
 # Validation record
 
+## 0.8.3 upstream safety and multimodal fallback (2026-11-02)
+
+Release candidate above `33f3c97`, selectively adapting upstream
+`c8d79639c25596662c50ba2398972bf7b122fa11` (0.6.23) above `fb348e5` (0.6.21).
+Existing committed-stream failover guards (`metrics.committed`), CSV formula
+injection quoting, hardcoded `PRICE_CATALOG_URL`, 1 MiB SSE frame limits and
+serialized `enqueuePlanWrite` queues were already present in `0.8.2` and retained.
+
+`npm test` passes 264 tests with zero failures/skips, including client consistency,
+locale/placeholder parity and lint. The client remains 231667 bytes, below 256 KiB.
+
+New regressions (`test/path-safety.test.js` and `test/payload-sanitize.test.js`)
+cover:
+
+- `isSafeDataPath` enforcement for `modelsCachePath` in `PUT /dsh-clinebot/config`:
+  null-byte rejection, `DSH_HOME` containment, POSIX `~/...` expansion under `$HOME`
+  (fixing upstream's `raw.slice(1)` root-resolution bug), `.json` extension check,
+  forbidden config/manifest basenames, and `clinebot-*` prefix requirement inside
+  `profiles/`.
+- `isImageDataOrHttpUrl` and `sanitizePayloadImages`: preservation of valid
+  `data:image/*;base64,` and `http(s)://` image blocks, zero-copy pass-through
+  when no block changes, conversion of failed/placeholder `image_url` blocks to
+  `{ type: 'text', text: ... }` in both loopback proxy (`lib/proxy-server.js`)
+  and direct native adapter (`lib/native-adapter.js`) paths.
+
 ## 0.8.2 upstream adoption (2026-10-30)
 
 Release candidate above `8f4c3be`, selectively adapting upstream

@@ -157,7 +157,10 @@ sync uses the same writer and freshness timestamp. Failures retain valid data;
 disable/unload cancels reads and invalidates late writes. Quota polling does not
 fetch the full catalog. Cache v4 isolates the API address, account and credential
 fingerprint; older caches are refetched. A failed cache save shows a warning while
-settings and model calls remain usable.
+settings and model calls remain usable. Custom `modelsCachePath` writes must stay
+inside `DSH_HOME` as a safe `.json` file (`profiles/` entries must start with
+`clinebot-`). Invalid or failed `image_url` blocks in chat payloads are downgraded
+to plain text blocks before upstream calls in both proxy and direct modes.
 
 FREE badges/filtering use exact IDs from the gateway's explicit recommendation
 `free` list, verified on 2026-10-29. Names and zero reference prices are not free
